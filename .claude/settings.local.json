@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__UnityMCP__set_active_instance"
+      "mcp__UnityMCP__set_active_instance",
+      "Bash(file ./Assets/Model/models/*.onnx)"
     ]
   }
 }
