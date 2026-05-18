@@ -1,0 +1,3 @@
+[submodule "Assets/Model"]
+	path = Assets/Model
+	url = https://github.com/jungwoo9454/brushing-teeth-analysis-model.git
