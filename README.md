@@ -92,6 +92,19 @@ git lfs install && git lfs pull
 1. **Unity 6000.4.7f1**로 프로젝트를 엽니다.
 2. `Assets/Scenes/Main.unity` 씬을 실행합니다.
 
+## 팀원
+
+| 이름 | 전공 | 역할 | GitHub |
+|---|---|---|---|
+| 김정우 | 컴퓨터공학전공 | 메인 개발 | [@jungwoo9454](https://github.com/jungwoo9454) |
+| 김지원 | 컴퓨터공학전공 | 서브 | [@wldnjs2520](https://github.com/wldnjs2520) |
+| 김태현 | SW안전보안전공 | 서브 | [@taehyeon0128](https://github.com/taehyeon0128) |
+| 이종완 | 컴퓨터공학전공 | 서브 | [@lee2003121](https://github.com/lee2003121) |
+| 이준영 | 컴퓨터공학전공 | 서브 | [@wnsdud030415](https://github.com/wnsdud030415) |
+| 정재영 | SW안전보안전공 | 서브 | [@qwertyuiopasdfghjcn](https://github.com/qwertyuiopasdfghjcn) |
+
+> 서브 인원의 세부 개발 파트는 추후 업데이트 예정입니다.
+
 ## 문서
 
 - 기획서: `Assets/Document/세살버릇_앱_기획서(초안).pdf`
