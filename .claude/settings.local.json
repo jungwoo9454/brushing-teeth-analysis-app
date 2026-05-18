@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__UnityMCP__set_active_instance"
+    ]
+  }
+}
