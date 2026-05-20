@@ -11,3 +11,9 @@ Assets/Font/**/*.ttf filter=lfs diff=lfs merge=lfs -text
 
 # ML ONNX 모델 (서브모듈 Assets/Model/ 외 직접 들어올 경우 대비)
 *.onnx filter=lfs diff=lfs merge=lfs -text
+
+# MediaPipe 네이티브 라이브러리 (homuler 패키지의 macOS .dylib 등)
+*.dylib filter=lfs diff=lfs merge=lfs -text
+
+# MediaPipe Tasks 모델 파일 (face_landmarker.task 등)
+*.task filter=lfs diff=lfs merge=lfs -text
