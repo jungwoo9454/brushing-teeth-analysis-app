@@ -1,0 +1,34 @@
+<!-- 온보딩 01 — 스플래시
+     큰 버디(칫솔) + "안녕! 나는 버디야" + 보호자 가입 CTA -->
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="../Tokens/tokens.uss" />
+    <Style src="../Common/common.uss" />
+
+    <ui:VisualElement class="scr theme-light" name="root">
+
+        <ui:VisualElement class="sb">
+            <ui:Label text="오전 7:42" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="bd" style="padding: 24px 22px 32px 22px; align-items: center; justify-content: space-between;">
+
+            <ui:Label text="세살버릇" class="t-cap" style="margin-top: 12px;" />
+
+            <ui:VisualElement style="align-items: center;">
+                <ui:VisualElement style="width: 200px; height: 200px; background-color: var(--accent-soft); border-radius: 999px; align-items: center; justify-content: center;">
+                    <ui:Label text="🐻" style="font-size: 130px;" />
+                </ui:VisualElement>
+                <ui:Label text="안녕!" class="t-display" style="font-size: 36px; margin-top: 16px;" />
+                <ui:Label text="나는 버디야.&#10;같이 양치 친구가 되어 줄래?" class="t-h3 t-mute" style="margin-top: 8px; -unity-text-align: middle-center;" />
+            </ui:VisualElement>
+
+            <ui:VisualElement style="width: 100%;">
+                <ui:Button text="보호자 계정 만들기" class="btn primary block lg" name="btn-signup" />
+                <ui:Button text="이미 계정이 있어요" class="btn ghost block" name="btn-login" style="margin-top: 8px;" />
+                <ui:Label text="가입은 보호자가 진행해 주세요" class="t-cap" style="-unity-text-align: middle-center; margin-top: 6px;" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,131 @@
+<!-- 아이 모드 — 홈 화면
+     디자인: 캐릭터 카드(연속일/양치 시작) + 위젯 그리드(오늘 일정/이번 주 평균) + 약한 부위 알림 -->
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="../Tokens/tokens.uss" />
+    <Style src="../Common/common.uss" />
+
+    <ui:VisualElement class="scr theme-light" name="root">
+
+        <!-- 상태바 -->
+        <ui:VisualElement class="sb">
+            <ui:Label text="오전 7:42" />
+            <ui:VisualElement class="row" style="flex-direction: row;" />
+        </ui:VisualElement>
+
+        <!-- 헤더 -->
+        <ui:VisualElement class="hd">
+            <ui:VisualElement class="hd-left" style="flex-direction: row;">
+                <ui:VisualElement class="hd-icon" style="background-color: var(--primary-soft);">
+                    <ui:Label text="🐻" style="font-size: 22px;" />
+                </ui:VisualElement>
+                <ui:VisualElement class="hd-title-block">
+                    <ui:Label text="5월 20일 화요일" class="hd-sub" />
+                    <ui:Label text="안녕, 하준!" class="hd-title" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="hd-right" style="flex-direction: row;">
+                <ui:VisualElement class="hd-icon">
+                    <ui:Label text="🔔" style="font-size: 18px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 바디 -->
+        <ui:ScrollView class="bd">
+
+            <!-- 캐릭터 카드 -->
+            <ui:VisualElement class="card primary-soft" style="padding: 18px;">
+                <ui:VisualElement class="row between" style="align-items: flex-start;">
+                    <ui:VisualElement style="max-width: 160px;">
+                        <ui:Label text="🔥 12일 연속" class="chip primary" style="height: 22px;" />
+                        <ui:Label text="아침 양치&#10;할 시간이에요" class="t-h1" style="margin-top: 10px; color: var(--primary-ink);" />
+                        <ui:Label text="버디가 기다리고 있어요" class="t-body" style="margin-top: 6px; color: var(--primary-ink);" />
+                    </ui:VisualElement>
+                    <!-- 캐릭터 자리 (실제 이미지/스프라이트로 교체) -->
+                    <ui:VisualElement style="width: 130px; height: 130px; background-color: var(--accent-soft); border-radius: 999px; align-items: center; justify-content: center;">
+                        <ui:Label text="🐻" style="font-size: 80px;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Button text="양치 시작 · 2분" class="btn primary block lg" name="btn-brush" style="margin-top: 14px;" />
+            </ui:VisualElement>
+
+            <!-- 위젯 그리드 (오늘 일정 / 이번 주 평균) -->
+            <ui:VisualElement class="row" style="flex-direction: row;">
+                <ui:VisualElement class="card grow" style="margin-right: 5px;">
+                    <ui:VisualElement class="row between">
+                        <ui:Label text="오늘 일정" class="t-cap" />
+                        <ui:Label text="1/2" class="chip good" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="row" style="margin-top: 10px;">
+                        <ui:VisualElement style="width: 22px; height: 22px; border-radius: 999px; background-color: var(--success); align-items: center; justify-content: center; margin-right: 8px;">
+                            <ui:Label text="✓" style="color: white; font-size: 12px;" />
+                        </ui:VisualElement>
+                        <ui:VisualElement>
+                            <ui:Label text="아침" class="t-h3" />
+                            <ui:Label text="07:42 · 완료" class="t-cap" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="row" style="margin-top: 8px; opacity: 0.55;">
+                        <ui:VisualElement style="width: 22px; height: 22px; border-radius: 999px; background-color: var(--bg-soft); margin-right: 8px;" />
+                        <ui:VisualElement>
+                            <ui:Label text="저녁" class="t-h3" />
+                            <ui:Label text="19:30 예정" class="t-cap" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="card grow" style="margin-left: 5px;">
+                    <ui:Label text="이번 주 평균" class="t-cap" />
+                    <ui:VisualElement class="row" style="margin-top: 6px;">
+                        <ui:Label text="84" class="t-display t-num" style="font-size: 38px;" />
+                        <ui:Label text="점" class="t-cap" style="margin-left: 4px;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="row">
+                        <ui:Label text="▲ 6" class="chip good" />
+                        <ui:Label text="전주 대비" class="t-cap" style="margin-left: 4px;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="progress thin" style="margin-top: 8px;">
+                        <ui:VisualElement class="progress-fill" style="width: 84%;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- 약한 부위 알림 카드 -->
+            <ui:VisualElement class="card warn" name="card-weak-zone">
+                <ui:VisualElement class="row between">
+                    <ui:VisualElement class="row">
+                        <ui:VisualElement style="width: 36px; height: 36px; border-radius: 12px; background-color: var(--warning); align-items: center; justify-content: center; margin-right: 10px;">
+                            <ui:Label text="⚠" style="color: white; font-size: 18px;" />
+                        </ui:VisualElement>
+                        <ui:VisualElement>
+                            <ui:Label text="아래 오른쪽 어금니" class="t-h3" />
+                            <ui:Label text="5일 연속 부족 · 신경 써 볼까요?" class="t-body" style="margin-top: 2px;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Label text="›" style="font-size: 18px; color: var(--ink-3);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+        </ui:ScrollView>
+
+        <!-- 탭바 -->
+        <ui:VisualElement class="tb">
+            <ui:VisualElement class="tb-item on">
+                <ui:Label text="🏠" style="font-size: 22px;" />
+                <ui:Label text="홈" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tb-item" name="tab-report">
+                <ui:Label text="📊" style="font-size: 22px;" />
+                <ui:Label text="리포트" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tb-item" name="tab-reward">
+                <ui:Label text="🏆" style="font-size: 22px;" />
+                <ui:Label text="버디" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tb-item" name="tab-parent">
+                <ui:Label text="👤" style="font-size: 22px;" />
+                <ui:Label text="보호자" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
