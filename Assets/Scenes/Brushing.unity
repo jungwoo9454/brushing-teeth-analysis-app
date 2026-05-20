@@ -513,6 +513,7 @@ GameObject:
   - component: {fileID: 1809714096}
   - component: {fileID: 1809714094}
   - component: {fileID: 1809714100}
+  - component: {fileID: 1809714101}
   m_Layer: 0
   m_Name: BrushingPipelineRig
   m_TagString: Untagged
@@ -616,6 +617,24 @@ MonoBehaviour:
   minPresenceConfidence: 0.5
   minTrackingConfidence: 0.5
   inputTexture: {fileID: 0}
+--- !u!114 &1809714101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1809714093}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eaa76bccfc5e042f1928868057c97c63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BrushingSession
+  targetTotalSeconds: 120
+  targetPerZoneSeconds: 24
+  autoStartOnEnable: 1
+  autoEndOnTargetReached: 1
+  tickInterval: 0.1
+  logSessionEvents: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
