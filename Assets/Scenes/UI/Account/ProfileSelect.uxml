@@ -1,0 +1,88 @@
+<!-- 가족 계정 01 — 프로필 선택 (앱 진입 시 멀티 프로필) -->
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="../Tokens/tokens.uss" />
+    <Style src="../Common/common.uss" />
+
+    <ui:VisualElement class="scr theme-light" name="root">
+        <ui:VisualElement class="sb">
+            <ui:Label text="오전 7:42" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="bd" style="padding: 14px 22px 22px 22px;">
+
+            <ui:VisualElement class="row between" style="margin-top: 4px;">
+                <ui:Label text="세살버릇" class="t-cap" />
+                <ui:Button text="관리" class="btn ghost" style="padding: 4px 10px; font-size: 12px;" name="btn-manage" />
+            </ui:VisualElement>
+
+            <ui:VisualElement style="margin-top: 14px; align-items: center;">
+                <ui:Label text="누가 사용할까요?" class="t-display" style="font-size: 28px;" />
+                <ui:Label text="가족 멤버를 선택해 주세요" class="t-body" style="margin-top: 6px;" />
+            </ui:VisualElement>
+
+            <!-- 프로필 그리드 (3열) -->
+            <ui:VisualElement style="margin-top: 18px;">
+                <ui:VisualElement class="row" style="flex-direction: row; justify-content: space-between; margin-bottom: 14px;">
+                    <!-- 엄마 -->
+                    <ui:VisualElement style="align-items: center; flex-grow: 1;" name="profile-mom">
+                        <ui:VisualElement style="width: 72px; height: 72px; border-radius: 20px; background-color: #3B7FE8; align-items: center; justify-content: center;">
+                            <ui:Label text="지" style="color: white; font-size: 24px; -unity-font-style: bold;" />
+                            <ui:VisualElement style="position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 999px; background-color: var(--bg-elev); border-width: 2px; border-color: var(--bg); align-items: center; justify-content: center;">
+                                <ui:Label text="🔒" style="font-size: 11px;" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:Label text="엄마" style="font-size: 13px; -unity-font-style: bold; margin-top: 8px;" />
+                        <ui:Label text="보호자" class="t-cap" style="font-size: 10px;" />
+                    </ui:VisualElement>
+                    <!-- 아빠 -->
+                    <ui:VisualElement style="align-items: center; flex-grow: 1;" name="profile-dad">
+                        <ui:VisualElement style="width: 72px; height: 72px; border-radius: 20px; background-color: #E07A5F; align-items: center; justify-content: center;">
+                            <ui:Label text="철" style="color: white; font-size: 24px; -unity-font-style: bold;" />
+                            <ui:VisualElement style="position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 999px; background-color: var(--bg-elev); border-width: 2px; border-color: var(--bg); align-items: center; justify-content: center;">
+                                <ui:Label text="🔒" style="font-size: 11px;" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:Label text="아빠" style="font-size: 13px; -unity-font-style: bold; margin-top: 8px;" />
+                        <ui:Label text="보호자" class="t-cap" style="font-size: 10px;" />
+                    </ui:VisualElement>
+                    <!-- 하준 -->
+                    <ui:VisualElement style="align-items: center; flex-grow: 1;" name="profile-c1">
+                        <ui:VisualElement style="width: 72px; height: 72px; border-radius: 20px; background-color: var(--accent-soft); align-items: center; justify-content: center; border-width: 1px; border-color: var(--line);">
+                            <ui:Label text="🐻" style="font-size: 48px;" />
+                        </ui:VisualElement>
+                        <ui:Label text="하준" style="font-size: 13px; -unity-font-style: bold; margin-top: 8px;" />
+                        <ui:Label text="만 5세" class="t-cap" style="font-size: 10px;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="row" style="flex-direction: row; justify-content: flex-start;">
+                    <!-- 서아 -->
+                    <ui:VisualElement style="align-items: center; flex-grow: 1; max-width: 33%;" name="profile-c2">
+                        <ui:VisualElement style="width: 72px; height: 72px; border-radius: 20px; background-color: var(--accent-soft); align-items: center; justify-content: center; border-width: 1px; border-color: var(--line);">
+                            <ui:Label text="🐱" style="font-size: 48px;" />
+                        </ui:VisualElement>
+                        <ui:Label text="서아" style="font-size: 13px; -unity-font-style: bold; margin-top: 8px;" />
+                        <ui:Label text="만 7세" class="t-cap" style="font-size: 10px;" />
+                    </ui:VisualElement>
+                    <!-- 추가 슬롯 -->
+                    <ui:VisualElement style="align-items: center; flex-grow: 1; max-width: 33%;" name="profile-add">
+                        <ui:VisualElement style="width: 72px; height: 72px; border-radius: 20px; border-width: 2px; border-color: var(--line-strong); align-items: center; justify-content: center;">
+                            <ui:Label text="+" style="font-size: 28px; color: var(--ink-3);" />
+                        </ui:VisualElement>
+                        <ui:Label text="추가" class="t-cap" style="font-size: 11px; margin-top: 8px;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement style="flex-grow: 1; max-width: 33%;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="grow" />
+
+            <ui:VisualElement class="card flat" style="background-color: var(--bg-soft); padding: 10px 14px;">
+                <ui:VisualElement class="row">
+                    <ui:Label text="🔒" style="color: var(--ink-3); margin-right: 10px;" />
+                    <ui:Label text="보호자 프로필은 PIN으로 잠겨 있어요" class="t-body" style="font-size: 11px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

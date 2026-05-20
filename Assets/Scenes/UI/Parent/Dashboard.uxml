@@ -1,0 +1,135 @@
+<!-- 보호자 모드 — 대시보드 (홈)
+     아이 선택 탭 + 종합 점수 + 위험 경고 + 빠른 액션 2x2 -->
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="../Tokens/tokens.uss" />
+    <Style src="../Common/common.uss" />
+
+    <ui:VisualElement class="scr theme-light" name="root">
+
+        <ui:VisualElement class="sb">
+            <ui:Label text="오전 7:42" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="hd">
+            <ui:VisualElement class="hd-left" style="flex-direction: row;">
+                <ui:VisualElement class="hd-icon" style="background-color: var(--bg-soft);">
+                    <ui:Label text="김" style="font-size: 14px;" class="t-h3" />
+                </ui:VisualElement>
+                <ui:VisualElement class="hd-title-block">
+                    <ui:Label text="보호자 모드" class="hd-sub" />
+                    <ui:Label text="김지영 엄마" class="hd-title" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="hd-right" style="flex-direction: row;">
+                <ui:VisualElement class="hd-icon">
+                    <ui:Label text="🔔" style="font-size: 18px;" />
+                </ui:VisualElement>
+                <ui:VisualElement class="hd-icon">
+                    <ui:Label text="⋯" style="font-size: 18px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:ScrollView class="bd">
+
+            <!-- 아이 선택 탭 -->
+            <ui:VisualElement class="row" style="flex-direction: row;">
+                <ui:VisualElement class="card grow" style="padding: 8px 12px; flex-direction: row; align-items: center; background-color: var(--ink); margin-right: 5px;">
+                    <ui:VisualElement style="width: 24px; height: 24px; border-radius: 999px; background-color: var(--accent-soft); margin-right: 8px;" />
+                    <ui:VisualElement>
+                        <ui:Label text="하준" style="color: var(--bg); font-size: 13px;" class="t-h3" />
+                        <ui:Label text="만 5세" style="color: rgba(255,255,255,0.6); font-size: 9px;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="card grow" style="padding: 8px 12px; flex-direction: row; align-items: center; margin-left: 5px; margin-right: 5px;">
+                    <ui:VisualElement style="width: 24px; height: 24px; border-radius: 999px; background-color: var(--bg-soft); margin-right: 8px;" />
+                    <ui:VisualElement>
+                        <ui:Label text="서아" class="t-h3" />
+                        <ui:Label text="만 7세" class="t-cap" style="font-size: 9px;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="card dashed" style="padding: 8px 12px; align-items: center; justify-content: center; width: 48px; margin-left: 5px;">
+                    <ui:Label text="+" class="t-h3" style="color: var(--ink-3);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- 종합 점수 카드 -->
+            <ui:VisualElement class="card" name="card-summary">
+                <ui:VisualElement class="row between">
+                    <ui:Label text="이번 주 종합" class="t-cap" style="-unity-font-style: bold;" />
+                    <ui:Label text="5/13 — 5/19" class="chip" />
+                </ui:VisualElement>
+                <ui:VisualElement class="row between" style="margin-top: 8px;">
+                    <ui:VisualElement>
+                        <ui:Label text="78/100" class="t-display t-num" style="font-size: 38px;" />
+                        <ui:VisualElement class="row" style="margin-top: 4px;">
+                            <ui:Label text="▲ 6점" class="chip good" style="margin-right: 4px;" />
+                            <ui:Label text="전주 대비" class="t-cap" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <!-- 미니 막대 차트 (7일) -->
+                    <ui:VisualElement style="flex-direction: row; align-items: flex-end; height: 52px;">
+                        <ui:VisualElement style="width: 10px; height: 37px; background-color: var(--bg-soft); margin-right: 5px;" />
+                        <ui:VisualElement style="width: 10px; height: 42px; background-color: var(--bg-soft); margin-right: 5px;" />
+                        <ui:VisualElement style="width: 10px; height: 34px; background-color: var(--bg-soft); margin-right: 5px;" />
+                        <ui:VisualElement style="width: 10px; height: 44px; background-color: var(--bg-soft); margin-right: 5px;" />
+                        <ui:VisualElement style="width: 10px; height: 41px; background-color: var(--bg-soft); margin-right: 5px;" />
+                        <ui:VisualElement style="width: 10px; height: 47px; background-color: var(--bg-soft); margin-right: 5px;" />
+                        <ui:VisualElement style="width: 10px; height: 43px; background-color: var(--primary);" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="progress thin" style="margin-top: 8px;">
+                    <ui:VisualElement class="progress-fill" style="width: 78%;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- 위험 경고 카드 -->
+            <ui:VisualElement class="card warn" name="card-risk">
+                <ui:VisualElement class="row between">
+                    <ui:VisualElement class="row">
+                        <ui:VisualElement style="width: 36px; height: 36px; border-radius: 12px; background-color: var(--warning); align-items: center; justify-content: center; margin-right: 10px;">
+                            <ui:Label text="⚠" style="color: white; font-size: 18px;" />
+                        </ui:VisualElement>
+                        <ui:VisualElement>
+                            <ui:Label text="아래 오른쪽 어금니" class="t-h3" />
+                            <ui:Label text="5일 연속 부족 · 충치 위험" class="t-body" style="margin-top: 2px;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Label text="›" style="font-size: 18px; color: var(--ink-3);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- 빠른 액션 2x2 -->
+            <ui:VisualElement class="row" style="flex-direction: row;">
+                <ui:VisualElement class="card grow" style="padding: 12px; margin-right: 5px;">
+                    <ui:Label text="오늘 일정" class="t-cap" style="-unity-font-style: bold;" />
+                    <ui:Label text="1/2" class="t-h2 t-num" style="margin-top: 6px;" />
+                    <ui:Label text="저녁 19:30 예정" class="t-cap" />
+                </ui:VisualElement>
+                <ui:VisualElement class="card grow" style="padding: 12px; margin-left: 5px;">
+                    <ui:Label text="연속 양치" class="t-cap" style="-unity-font-style: bold;" />
+                    <ui:Label text="12일 🔥" class="t-h2 t-num" style="margin-top: 6px;" />
+                    <ui:Label text="역대 최장 14일" class="t-cap" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+        </ui:ScrollView>
+
+        <!-- 탭바 (보호자 모드) -->
+        <ui:VisualElement class="tb">
+            <ui:VisualElement class="tb-item on">
+                <ui:Label text="🏠" style="font-size: 22px;" />
+                <ui:Label text="홈" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tb-item" name="tab-report">
+                <ui:Label text="📊" style="font-size: 22px;" />
+                <ui:Label text="리포트" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tb-item" name="tab-settings">
+                <ui:Label text="⚙" style="font-size: 22px;" />
+                <ui:Label text="설정" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
