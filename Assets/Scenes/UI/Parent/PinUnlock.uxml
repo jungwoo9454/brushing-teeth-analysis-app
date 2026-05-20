@@ -1,0 +1,75 @@
+<!-- 보호자 모드 — PIN 잠금 해제
+     4자리 PIN 도트 + 키패드 + "PIN을 잊으셨나요?" 링크 -->
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="../Tokens/tokens.uss" />
+    <Style src="../Common/common.uss" />
+
+    <ui:VisualElement class="scr theme-light" name="root">
+
+        <ui:VisualElement class="sb">
+            <ui:Label text="오전 7:42" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="hd">
+            <ui:VisualElement class="hd-left" style="flex-direction: row;">
+                <ui:VisualElement class="hd-icon" name="btn-back">
+                    <ui:Label text="‹" style="font-size: 22px;" />
+                </ui:VisualElement>
+                <ui:VisualElement class="hd-title-block">
+                    <ui:Label text="잠금 해제" class="hd-sub" />
+                    <ui:Label text="보호자 모드" class="hd-title" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement class="bd" style="align-items: center; padding: 16px 18px 24px 18px;">
+
+            <ui:VisualElement style="width: 64px; height: 64px; border-radius: 20px; background-color: var(--primary-soft); align-items: center; justify-content: center; margin-top: 8px;">
+                <ui:Label text="🔒" style="font-size: 32px;" />
+            </ui:VisualElement>
+
+            <ui:Label text="PIN 4자리" class="t-h1" style="margin-top: 14px;" />
+            <ui:Label text="아이가 모드를 바꾸지 못하게 잠겨 있어요" class="t-body" style="margin-top: 4px;" />
+
+            <!-- PIN 도트 (4개) -->
+            <ui:VisualElement class="row" style="margin-top: 18px;">
+                <ui:VisualElement class="pin-cell" style="margin-right: 14px;">
+                    <ui:VisualElement class="pin-cell-dot" />
+                </ui:VisualElement>
+                <ui:VisualElement class="pin-cell" style="margin-right: 14px;">
+                    <ui:VisualElement class="pin-cell-dot" />
+                </ui:VisualElement>
+                <ui:VisualElement class="pin-cell" style="margin-right: 14px;" />
+                <ui:VisualElement class="pin-cell" />
+            </ui:VisualElement>
+
+            <!-- 키패드 (3x4) -->
+            <ui:VisualElement style="margin-top: 24px; width: 100%;">
+                <ui:VisualElement class="row" style="flex-direction: row; margin-bottom: 10px;">
+                    <ui:Button text="1" class="keypad-btn" style="flex-grow: 1; margin-right: 5px;" />
+                    <ui:Button text="2" class="keypad-btn" style="flex-grow: 1; margin-right: 5px; margin-left: 5px;" />
+                    <ui:Button text="3" class="keypad-btn" style="flex-grow: 1; margin-left: 5px;" />
+                </ui:VisualElement>
+                <ui:VisualElement class="row" style="flex-direction: row; margin-bottom: 10px;">
+                    <ui:Button text="4" class="keypad-btn" style="flex-grow: 1; margin-right: 5px;" />
+                    <ui:Button text="5" class="keypad-btn" style="flex-grow: 1; margin-right: 5px; margin-left: 5px;" />
+                    <ui:Button text="6" class="keypad-btn" style="flex-grow: 1; margin-left: 5px;" />
+                </ui:VisualElement>
+                <ui:VisualElement class="row" style="flex-direction: row; margin-bottom: 10px;">
+                    <ui:Button text="7" class="keypad-btn" style="flex-grow: 1; margin-right: 5px;" />
+                    <ui:Button text="8" class="keypad-btn" style="flex-grow: 1; margin-right: 5px; margin-left: 5px;" />
+                    <ui:Button text="9" class="keypad-btn" style="flex-grow: 1; margin-left: 5px;" />
+                </ui:VisualElement>
+                <ui:VisualElement class="row" style="flex-direction: row;">
+                    <ui:VisualElement style="flex-grow: 1; margin-right: 5px;" />
+                    <ui:Button text="0" class="keypad-btn" style="flex-grow: 1; margin-right: 5px; margin-left: 5px;" />
+                    <ui:Button text="⌫" class="keypad-btn del" style="flex-grow: 1; margin-left: 5px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:Button text="PIN을 잊으셨나요?" class="btn ghost" style="margin-top: 14px; font-size: 13px;" />
+
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
