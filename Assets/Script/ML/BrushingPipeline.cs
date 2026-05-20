@@ -69,10 +69,9 @@ public class BrushingPipeline : MonoBehaviour
 
     private void Awake()
     {
-        // Editor/Player가 background로 가도 Update가 멈추지 않도록 — 카메라 권한 prompt나 다른 창 focus 시
-        // Game View가 멈춰서 Update가 안 도는 케이스를 방지한다.
+        // Editor/Player가 background로 가도 Update가 멈추지 않도록 — 카메라 권한 prompt 등으로 focus를
+        // 잃는 순간 Game View가 멈춰서 ML 파이프라인이 정지하는 케이스를 방지한다.
         Application.runInBackground = true;
-        Debug.Log("[BrushingPipeline] Awake 진입");
 
         // SerializeField로 안 주입된 경우 같은 GameObject에서 자동 탐색 — RequireComponent 덕에 반드시 존재.
         if (detector == null)   detector   = GetComponent<ToothbrushDetector>();
@@ -82,33 +81,22 @@ public class BrushingPipeline : MonoBehaviour
         faceProvider = faceProviderBehaviour as IFaceLandmarksProvider;
         if (faceProvider == null)
             Debug.LogError("[BrushingPipeline] faceProviderBehaviour가 IFaceLandmarksProvider를 구현하지 않았다.");
-        else
-            Debug.Log("[BrushingPipeline] faceProvider OK: " + faceProvider.GetType().Name);
     }
 
     private void Start()
     {
-        Debug.Log($"[BrushingPipeline] Start — WebCamTexture.devices.Length = {WebCamTexture.devices.Length}");
         StartCamera();
-        Debug.Log($"[BrushingPipeline] StartCamera 완료 — webcam null? {webcam == null}, deviceName={webcam?.deviceName}, isPlaying={webcam?.isPlaying}");
 
         // 미리보기 RawImage가 연결돼 있으면 WebCamTexture를 직접 바인딩.
         // WebCamTexture는 Unity가 매 프레임 갱신하므로 한 번만 할당해두면 RawImage가 자동으로 최신 프레임을 그린다.
+        // RectTransform 비율 fit은 카메라 첫 프레임을 받은 직후 Update에서 한 번만 수행(현재 webcam.width/height는 placeholder).
         if (previewImage != null && webcam != null)
-        {
             previewImage.texture = webcam;
-            // AspectRatioFitter 비율 갱신은 Start 시점이 아니라 첫 카메라 프레임을 받은 직후로 미룬다 —
-            // Start에서는 webcam.width/height가 아직 placeholder(16x16)라서 잘못된 비율로 잡힘.
-            Debug.Log("[BrushingPipeline] previewImage에 WebCamTexture 바인딩 완료.");
-        }
 
         // FaceProvider가 MediaPipeFaceProvider인 경우, BrushingPipeline의 webcam을 입력 텍스처로 주입.
         // (DummyFaceProvider 등 다른 구현체에는 영향 없음 — 그쪽은 외부 입력이 필요 없는 stub.)
         if (faceProvider is MediaPipeFaceProvider mpProvider && webcam != null)
-        {
             mpProvider.SetInputTexture(webcam);
-            Debug.Log("[BrushingPipeline] MediaPipeFaceProvider에 webcam 입력 주입 완료.");
-        }
     }
 
     private void OnDestroy()
@@ -117,35 +105,19 @@ public class BrushingPipeline : MonoBehaviour
         if (sourceRt != null) { sourceRt.Release(); Destroy(sourceRt); sourceRt = null; }
     }
 
-    // 진단용: Update 첫 진입과 카메라 첫 프레임 수신 시점을 한 번씩만 로그.
-    private bool _diagFirstTickLogged;
-    private bool _diagFirstFrameLogged;
-
-    // 진단용: 1초 throttle로 face/brush 상태를 콘솔에 찍기 위한 타이머.
-    // pitch 부호 검증·detection 비율 확인 등에 사용. 검증 끝나면 이 블록 제거 가능.
-    private float _diagNextLogTime;
+    // 카메라 첫 프레임 수신 시점에 RawImage RectTransform을 카메라 비율로 fit하기 위한 1회성 가드.
+    // Start 시점엔 webcam.width/height가 placeholder(16x16)라 정확한 비율을 계산할 수 없다.
+    private bool _previewFitted;
 
     private void Update()
     {
-        // Update 자체가 도는지 확인용 — Awake/Start 로그는 떴는데 이 로그가 안 뜨면 Update 자체가 안 도는 상황.
-        if (!_diagFirstTickLogged)
-        {
-            _diagFirstTickLogged = true;
-            Debug.Log($"[BrushingPipeline] First Update tick — webcam null? {webcam == null}, webcam.isPlaying={webcam?.isPlaying}, didUpdate={webcam?.didUpdateThisFrame}");
-        }
-
         // 카메라/Provider 준비 안 됐으면 이번 프레임 스킵 — 단, 빈 이벤트는 발행해서 UI가 None을 인지하게 한다.
         if (webcam == null || !webcam.didUpdateThisFrame) return;
 
-        // 카메라 첫 프레임 수신 시점 진단 — 이게 안 뜨면 카메라가 실제로 안 돌고 있는 것.
-        if (!_diagFirstFrameLogged)
+        // 카메라 첫 프레임이 들어온 시점에 미리보기 비율을 한 번만 확정.
+        if (!_previewFitted)
         {
-            _diagFirstFrameLogged = true;
-            Debug.Log($"[BrushingPipeline] First camera frame received — {webcam.width}x{webcam.height}");
-
-            // 이제 실제 카메라 해상도가 확정됐으므로 RawImage의 RectTransform을 직접 계산해 fit-in-parent로 배치.
-            // AspectRatioFitter는 driven property 충돌이 있어서 stretch anchors 환경에서 의도대로 동작하지 않는다.
-            // 직접 계산해 부모(Canvas) 영역 안에 카메라 비율로 가장 크게 들어가는 크기로 sizeDelta를 잡는다.
+            _previewFitted = true;
             FitPreviewToParent(webcam.width, webcam.height);
         }
 
@@ -164,53 +136,41 @@ public class BrushingPipeline : MonoBehaviour
         // ── 단계 3: MouthInfo 빌드 (각도 정렬 polygon, 4점 평균 center, polygon bbox dim, pitch). ──
         var face = MediaPipeFacePort.Build(landmarks, source.width, source.height, faceTransform);
 
-        // ── 단계 4: 옆모습/입 비율 극단치 가드. 통과 못 하면 raw zone을 강제 None으로. ──
+        // ── 단계 4: 옆모습/입 비율 극단치 가드. 통과 못 하면 zone을 강제 None으로. ──
         bool guardOk = IsFaceUsable(face);
 
         // ── 단계 5: YOLO 칫솔 검출 (conf 0.01, swap 적용). ──
         var brush = detector.Detect(source);
 
-        // 진단: 1초마다 face/brush 상태 한 줄 — pitch 부호/검출 비율 검증용.
-        // 라디안을 degree로 변환해 직관적으로 (정면≈0, 숙임/들기에 따라 부호 확인).
-        if (Time.time >= _diagNextLogTime)
-        {
-            _diagNextLogTime = Time.time + 1f;
-            Debug.Log(
-                $"[Diag] face={face.isValid}, pitchDeg={face.pitch * Mathf.Rad2Deg:F1}, " +
-                $"yawDeg={face.yaw * Mathf.Rad2Deg:F1}, mw={face.width:F0}, mh={face.height:F0}, " +
-                $"brush.det={brush.hasDetection}, brush.conf={brush.conf:F3}, " +
-                $"head=({brush.head.x:F0},{brush.head.y:F0})");
-        }
-
         // ── 단계 6: feature 빌드 → MLP 추론. 가드 실패면 MLP 호출 자체를 스킵해서 비용 절감. ──
-        MlZone rawZone;
+        MlZone zone;
         if (!guardOk)
         {
-            rawZone = MlZone.None;
+            zone = MlZone.None;
         }
         else
         {
             FeatureBuilder.Build(face, brush, featBuffer);
-            rawZone = classifier.Predict(featBuffer);
+            zone = classifier.Predict(featBuffer);
         }
 
-        // ── 단계 7: Engagement 체크. 미통과 시 zone을 None으로 강제. ──
+        // ── 단계 7: Engagement 체크 (head ∈ polygon AND mouth_overlap ≥ 0.10). 미통과 시 zone을 None으로 강제. ──
         bool engaged = false;
-        if (rawZone != MlZone.None && brush.hasDetection && brush.hasHead && face.isValid)
+        if (brush.hasDetection && brush.hasHead && face.isValid && face.polygon != null)
         {
             engaged = EngagementChecker.IsEngaged(
                 brush.head, brush.bbox, face.polygon,
                 MlConstants.MOUTH_OVERLAP_THRESHOLD, out _);
         }
-        if (!engaged) rawZone = MlZone.None;
+        if (!engaged) zone = MlZone.None;
 
         // ── 단계 8: stability buffer로 시간 안정화 (window=3, min_count=2). ──
-        MlZone stable = stability.Push(rawZone);
+        MlZone stable = stability.Push(zone);
 
         // ── 단계 9: 5-zone UI 매핑 + 이벤트 발행. ──
         EventBus.Publish(new ZoneDetectedEvent
         {
-            rawZone    = rawZone,
+            rawZone    = zone,
             stableZone = stable,
             uiZones    = UIZoneMapper.Map(stable),
             isEngaged  = engaged,
@@ -331,8 +291,6 @@ public class BrushingPipeline : MonoBehaviour
         rt.pivot     = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = Vector2.zero;
         rt.sizeDelta = new Vector2(w, h);
-
-        Debug.Log($"[BrushingPipeline] FitPreviewToParent — cam={camW}x{camH}, parent={parentW:F0}x{parentH:F0}, fit={w:F0}x{h:F0}");
     }
 
     /// <summary>WebCamTexture 생성·Play. 디바이스가 없으면 에러 로그.</summary>

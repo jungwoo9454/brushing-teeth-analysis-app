@@ -215,7 +215,6 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
             var resolvedPath = System.IO.Path.IsPathRooted(modelAssetPath)
                 ? modelAssetPath
                 : System.IO.Path.Combine(Application.streamingAssetsPath, modelAssetPath);
-            Debug.Log("[MediaPipeFaceProvider] modelAssetPath 해석: " + resolvedPath);
 
             var baseOpt = new TasksBaseOptions(modelAssetPath: resolvedPath);
             var options = new FaceLandmarkerOptions(
@@ -228,7 +227,6 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
                 outputFaceBlendshapes: false,     // 사용 안 함 — 비활성으로 추론 비용 절감.
                 outputFaceTransformationMatrixes: true);  // pitch/yaw 추출에 필수.
             _landmarker = FaceLandmarker.CreateFromOptions(options);
-            Debug.Log("[MediaPipeFaceProvider] FaceLandmarker 초기화 OK — path=" + modelAssetPath);
         }
         catch (Exception e)
         {
