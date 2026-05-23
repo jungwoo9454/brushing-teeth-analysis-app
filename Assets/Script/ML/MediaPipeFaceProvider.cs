@@ -56,17 +56,32 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
     private FaceLandmarkerResult _latestResult;
     private bool _hasResult;
 
-    // 단조 증가 timestamp 보장용 시작 시점 (ms).
-    private long _startTickMs;
+    // 고해상도 단조 증가 timestamp 소스. Environment.TickCount는 Windows에서 ~15ms 해상도라
+    // 고FPS 시 연속 프레임이 같은 값을 받아 MediaPipe가 거부한다(monotonically increasing 위반).
+    private readonly System.Diagnostics.Stopwatch _clock = new System.Diagnostics.Stopwatch();
+
+    // MediaPipe에 마지막으로 넘긴 timestamp(ms) — 엄격한 단조 증가 보장용.
+    private long _lastTimestampMs = -1;
 
     // 진단/사용자 알림용 — 모델 로드 실패 시 매 프레임 에러 도배를 막기 위한 플래그.
     private bool _initFailed;
+
+    // 런타임 추론 예외를 한 번만 로그하기 위한 플래그(_initFailed와 달리 detection을 멈추지 않는다).
+    private bool _runtimeErrorLogged;
 
     // WebCamTexture는 Texture2D를 상속하지 않으므로 매 프레임 픽셀을 복사할 CPU 버퍼.
     // Mediapipe.Image 생성자는 Texture2D만 받아 변환이 강제됨.
     // _cpuTex는 inputTexture 해상도 변경 시에만 재생성 — 매 프레임 GC 없음.
     private Texture2D _cpuTex;
     private Color32[] _pixelBuffer;
+
+    // 좌표계 보정(상하/좌우 반전) 결과를 담는 별도 버퍼 — GetPixels32 원본(_pixelBuffer)을
+    // 덮어쓰지 않고 안전하게 변환하기 위해 분리한다.
+    private Color32[] _flipBuffer;
+
+    // 입력 텍스처에 가로 반전을 적용할지 여부. 전면(셀카) 카메라를 unmirror해
+    // YOLO 입력(unmirror된 source)과 좌표계를 맞추기 위한 플래그. SetInputTexture로 설정.
+    private bool _flipHorizontal;
 
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
@@ -75,7 +90,7 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
     private void Awake()
     {
         TryInitLandmarker();
-        _startTickMs = Environment.TickCount;
+        _clock.Restart();
     }
 
     private void OnDestroy()
@@ -87,6 +102,7 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
         // CPU 변환 버퍼 정리.
         if (_cpuTex != null) { Destroy(_cpuTex); _cpuTex = null; }
         _pixelBuffer = null;
+        _flipBuffer = null;
     }
 
     private void Update()
@@ -95,8 +111,10 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
         if (_initFailed || _landmarker == null || inputTexture == null) return;
 
         // 단조 증가 timestamp — TryDetectForVideo는 이전 호출보다 작거나 같으면 에러.
-        long timestampMs = Environment.TickCount - _startTickMs;
-        if (timestampMs <= 0) timestampMs = 1;
+        // Stopwatch는 고해상도(QPC 기반)이고, 그래도 같은 ms가 나오면 직전 값 +1로 강제한다.
+        long timestampMs = _clock.ElapsedMilliseconds;
+        if (timestampMs <= _lastTimestampMs) timestampMs = _lastTimestampMs + 1;
+        _lastTimestampMs = timestampMs;
 
         try
         {
@@ -121,11 +139,12 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
         }
         catch (Exception e)
         {
-            // 매 프레임 에러 도배 방지 — 한 번만 로그.
-            if (!_initFailed)
+            // 매 프레임 에러 도배 방지 — 한 번만 로그한다. 단, 일시적 예외로 detection을
+            // 영구 정지시키지 않는다(_initFailed 재사용 금지) — 다음 프레임에 다시 시도한다.
+            if (!_runtimeErrorLogged)
             {
-                Debug.LogError("[MediaPipeFaceProvider] 추론 중 예외 — 이후 프레임은 침묵: " + e.Message);
-                _initFailed = true;
+                Debug.LogError("[MediaPipeFaceProvider] 추론 중 예외: " + e.Message);
+                _runtimeErrorLogged = true;
             }
             _hasResult = false;
         }
@@ -136,7 +155,20 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
     // ─────────────────────────────────────────────────────────────
 
     /// <summary>외부에서 카메라 텍스처를 주입. BrushingPipeline.Start에서 webcam을 전달한다.</summary>
-    public void SetInputTexture(Texture tex) => inputTexture = tex;
+    public void SetInputTexture(Texture tex) => SetInputTexture(tex, false);
+
+    /// <summary>
+    /// 카메라 텍스처 주입 + unmirror 지정.
+    /// unmirror=true면 EnsureCpuTexture에서 가로 반전을 적용한다 — 전면(셀카) 카메라의
+    /// 좌우 미러를 풀어 YOLO 입력(BrushingPipeline.PrepareSource의 unmirror된 source)과
+    /// 동일한 좌표계를 쓰게 한다. 두 모델의 x축이 어긋나면 FeatureBuilder가 (head.x - mcx)를
+    /// 잘못 계산해 zone 분류가 틀어진다.
+    /// </summary>
+    public void SetInputTexture(Texture tex, bool unmirror)
+    {
+        inputTexture = tex;
+        _flipHorizontal = unmirror;
+    }
 
     /// <inheritdoc/>
     public bool TryGetLatest(out Vector3[] normalizedLandmarks, out Matrix4x4? faceTransform)
@@ -186,11 +218,21 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
                 if (_cpuTex != null) Destroy(_cpuTex);
                 _cpuTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
                 _pixelBuffer = new Color32[w * h];
+                _flipBuffer  = new Color32[w * h];
             }
 
             // GetPixels32(buffer)는 in-place로 버퍼를 채워 매 프레임 GC를 피한다.
             webcam.GetPixels32(_pixelBuffer);
-            _cpuTex.SetPixels32(_pixelBuffer);
+
+            // ── 좌표계 보정 ──
+            // Mediapipe.Image(Texture2D) 생성자는 Texture2D.GetRawTextureData()를 그대로
+            // native ImageFrame으로 넘긴다. 그런데 Unity 텍스처의 raw 데이터는 bottom-up
+            // (첫 행 = 이미지 맨 아랫줄)이고 MediaPipe ImageFrame은 top-down을 기대하므로,
+            // 보정 없이 넘기면 상하 반전된(거꾸로 선) 얼굴이 들어가 FaceLandmarker가
+            // 검출에 거의 실패한다. → 매 프레임 세로 반전 필수.
+            // _flipHorizontal이면 가로도 반전해 전면 카메라 unmirror까지 함께 처리한다.
+            FlipPixels(_pixelBuffer, _flipBuffer, w, h, _flipHorizontal);
+            _cpuTex.SetPixels32(_flipBuffer);
             _cpuTex.Apply(false);
             return _cpuTex;
         }
@@ -200,6 +242,32 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
 
         // RenderTexture 같은 다른 타입은 지원 안 함 (필요 시 ReadPixels 경로 추가).
         return null;
+    }
+
+    /// <summary>
+    /// bottom-up Color32 버퍼(src)를 dst로 복사하며 세로(상하)를 반전한다.
+    /// 이렇게 채운 Texture2D를 GetRawTextureData로 읽으면 top-down이 되어
+    /// MediaPipe ImageFrame의 좌표계와 일치한다. flipX=true면 가로도 함께 반전.
+    /// </summary>
+    private static void FlipPixels(Color32[] src, Color32[] dst, int w, int h, bool flipX)
+    {
+        if (flipX)
+        {
+            // 상하 + 좌우 동시 반전 — 픽셀 단위 복사.
+            for (int y = 0; y < h; y++)
+            {
+                int srcRow = (h - 1 - y) * w;
+                int dstRow = y * w;
+                for (int x = 0; x < w; x++)
+                    dst[dstRow + x] = src[srcRow + (w - 1 - x)];
+            }
+        }
+        else
+        {
+            // 상하 반전만 — 행 단위 블록 복사로 가볍게 처리.
+            for (int y = 0; y < h; y++)
+                System.Array.Copy(src, (h - 1 - y) * w, dst, y * w, w);
+        }
     }
 
     /// <summary>
