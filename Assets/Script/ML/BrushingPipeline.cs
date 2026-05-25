@@ -134,11 +134,12 @@ public class BrushingPipeline : MonoBehaviour
         if (webcam == null || !webcam.didUpdateThisFrame) return;
 
         // 카메라 첫 프레임이 들어온 시점에 미리보기 비율을 한 번만 확정.
-        if (!_previewFitted)
-        {
-            _previewFitted = true;
-            FitPreviewToParent(webcam.width, webcam.height);
-        }
+        // [임시] CameraPreviewImage의 width/height 자동 조정 잠시 비활성화 — 인스펙터 값 그대로 유지.
+        // if (!_previewFitted)
+        // {
+        //     _previewFitted = true;
+        //     FitPreviewToParent(webcam.width, webcam.height);
+        // }
 
         if (faceProvider == null) { PublishEmpty(); return; }
 
