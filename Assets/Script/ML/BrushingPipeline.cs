@@ -42,6 +42,23 @@ public class BrushingPipeline : MonoBehaviour
     [SerializeField] private RawImage previewImage;
 
     // ─────────────────────────────────────────────────────────────
+    // 외부 공개 상태 — 추후 기능(AR 피드백, 미니게임 등)이 매 프레임 폴링해 쓸 수 있다.
+    // EventBus의 ZoneDetectedEvent를 구독하지 않고도 현재 양치 구역을 바로 읽는 용도.
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 가장 최근에 확정된 양치 구역(8-class, engagement·stability 적용 후의 stableZone).
+    /// 양치 중이 아니거나 미검출 상태가 이어지면 MlZone.None.
+    /// </summary>
+    public MlZone CurrentZone { get; private set; } = MlZone.None;
+
+    /// <summary>
+    /// CurrentZone을 UI 5-zone으로 매핑한 결과. SideLeft/SideRight는 2개로 분기되며,
+    /// None이면 빈 배열. UIZoneMapper가 캐시한 배열이므로 호출자는 읽기 전용으로만 사용할 것.
+    /// </summary>
+    public UiZone[] CurrentUiZones { get; private set; } = System.Array.Empty<UiZone>();
+
+    // ─────────────────────────────────────────────────────────────
     // 내부 상태
     // ─────────────────────────────────────────────────────────────
 
@@ -59,9 +76,6 @@ public class BrushingPipeline : MonoBehaviour
 
     // 14-D feature 출력 버퍼 — 매 프레임 재사용해 GC 회피.
     private readonly float[] featBuffer = new float[FeatureBuilder.FEATURE_DIM];
-
-    // YAW guard를 radian으로 미리 변환 — 매 프레임 Deg2Rad 계산 회피.
-    private static readonly float YAW_GUARD_RAD = MlConstants.YAW_GUARD_DEG * Mathf.Deg2Rad;
 
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
@@ -95,8 +109,13 @@ public class BrushingPipeline : MonoBehaviour
 
         // FaceProvider가 MediaPipeFaceProvider인 경우, BrushingPipeline의 webcam을 입력 텍스처로 주입.
         // (DummyFaceProvider 등 다른 구현체에는 영향 없음 — 그쪽은 외부 입력이 필요 없는 stub.)
+        // YOLO는 PrepareSource()에서 전면 카메라를 unmirror하므로, MediaPipe에도 같은
+        // unmirror 여부를 알려 두 모델이 동일한 좌표계를 보게 한다.
         if (faceProvider is MediaPipeFaceProvider mpProvider && webcam != null)
-            mpProvider.SetInputTexture(webcam);
+        {
+            bool needUnmirror = unmirrorFrontCamera && IsCurrentDeviceFrontFacing();
+            mpProvider.SetInputTexture(webcam, needUnmirror);
+        }
     }
 
     private void OnDestroy()
@@ -115,26 +134,28 @@ public class BrushingPipeline : MonoBehaviour
         if (webcam == null || !webcam.didUpdateThisFrame) return;
 
         // 카메라 첫 프레임이 들어온 시점에 미리보기 비율을 한 번만 확정.
-        if (!_previewFitted)
-        {
-            _previewFitted = true;
-            FitPreviewToParent(webcam.width, webcam.height);
-        }
+        // [임시] CameraPreviewImage의 width/height 자동 조정 잠시 비활성화 — 인스펙터 값 그대로 유지.
+        // if (!_previewFitted)
+        // {
+        //     _previewFitted = true;
+        //     FitPreviewToParent(webcam.width, webcam.height);
+        // }
 
         if (faceProvider == null) { PublishEmpty(); return; }
 
         // ── 단계 1: 카메라 원본 → (필요 시) unmirror된 텍스처. ──
         Texture source = PrepareSource();
 
-        // ── 단계 2: MediaPipe Runner에서 최신 landmark + transform 가져오기. ──
-        if (!faceProvider.TryGetLatest(out var landmarks, out var faceTransform))
+        // ── 단계 2: MediaPipe Runner에서 최신 landmark 가져오기. ──
+        // faceTransform은 더 이상 쓰지 않는다 — pitch/yaw는 MediaPipeFacePort가 solvePnP로 구한다.
+        if (!faceProvider.TryGetLatest(out var landmarks, out _))
         {
             PublishEmpty();
             return;
         }
 
         // ── 단계 3: MouthInfo 빌드 (각도 정렬 polygon, 4점 평균 center, polygon bbox dim, pitch). ──
-        var face = MediaPipeFacePort.Build(landmarks, source.width, source.height, faceTransform);
+        var face = MediaPipeFacePort.Build(landmarks, source.width, source.height);
 
         // ── 단계 4: 옆모습/입 비율 극단치 가드. 통과 못 하면 zone을 강제 None으로. ──
         bool guardOk = IsFaceUsable(face);
@@ -167,12 +188,16 @@ public class BrushingPipeline : MonoBehaviour
         // ── 단계 8: stability buffer로 시간 안정화 (window=3, min_count=2). ──
         MlZone stable = stability.Push(zone);
 
-        // ── 단계 9: 5-zone UI 매핑 + 이벤트 발행. ──
+        // ── 단계 9: 5-zone UI 매핑 + 외부 공개 상태 갱신 + 이벤트 발행. ──
+        var uiZones = UIZoneMapper.Map(stable);
+        CurrentZone    = stable;
+        CurrentUiZones = uiZones;
+
         EventBus.Publish(new ZoneDetectedEvent
         {
             rawZone    = zone,
             stableZone = stable,
-            uiZones    = UIZoneMapper.Map(stable),
+            uiZones    = uiZones,
             isEngaged  = engaged,
             hasFace    = face.isValid,
             hasBrush   = brush.hasDetection,
@@ -221,30 +246,30 @@ public class BrushingPipeline : MonoBehaviour
     }
 
     /// <summary>
-    /// 추가 가드: face 검출 성공 + 정면 자세(|yaw| ≤ 45°) + 입 비율 정상 범위(0.1~5).
-    /// 학습 데이터 분포 밖 입력은 None 처리 — MLP 외삽 위험 회피.
+    /// face 검출 성공 여부만 확인한다.
+    /// 파이썬 데모(run_demo.py)·unity_port 파이프라인에는 yaw·입비율 가드가 없다.
+    /// 이전의 |yaw|≤45°·aspect 0.1~5 가드는 reference에 없는 Unity 추가물로,
+    /// 어금니를 닦으며 고개를 돌리는 정상 자세까지 None 처리해 정합성을 깨뜨렸다 — 제거.
     /// </summary>
-    private static bool IsFaceUsable(in MouthInfo face)
-    {
-        if (!face.isValid) return false;
-        if (Mathf.Abs(face.yaw) > YAW_GUARD_RAD) return false;
-        // face.height > MIN_MOUTH_HEIGHT는 MediaPipeFacePort.Build 안에서 이미 보장됨.
-        float aspect = face.width / face.height;
-        if (aspect < MlConstants.MOUTH_ASPECT_MIN || aspect > MlConstants.MOUTH_ASPECT_MAX) return false;
-        return true;
-    }
+    private static bool IsFaceUsable(in MouthInfo face) => face.isValid;
 
     /// <summary>
     /// 검출 실패/스킵 프레임용 빈 이벤트 발행.
-    /// stableZone은 StabilityBuffer 내부 상태(직전 값)를 그대로 사용해 UI 카운터 플리커를 방지.
+    /// 미검출 프레임도 stability에 None으로 Push한다 — 짧은 끊김은 StabilityBuffer가
+    /// 흡수하지만, 충분히 이어지면(idleResetFrames) stableZone이 None으로 떨어진다.
     /// </summary>
     private void PublishEmpty()
     {
+        MlZone stable = stability.Push(MlZone.None);
+        var uiZones = UIZoneMapper.Map(stable);
+        CurrentZone    = stable;
+        CurrentUiZones = uiZones;
+
         EventBus.Publish(new ZoneDetectedEvent
         {
             rawZone    = MlZone.None,
-            stableZone = stability.Current,
-            uiZones    = UIZoneMapper.Map(stability.Current),
+            stableZone = stable,
+            uiZones    = uiZones,
             isEngaged  = false,
             hasFace    = false,
             hasBrush   = false,
