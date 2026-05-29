@@ -24,6 +24,9 @@ public enum DialogueKind
     /// <summary>"거기 말고 OO를 닦아요" — 다른 구역을 닦고 있을 때.</summary>
     Correct,
 
+    /// <summary>"양치를 하고 있지 않아요" — 한동안 양치를 멈췄을 때.</summary>
+    Idle,
+
     /// <summary>"잘했어요!" — 칭찬/완료.</summary>
     Praise,
 }

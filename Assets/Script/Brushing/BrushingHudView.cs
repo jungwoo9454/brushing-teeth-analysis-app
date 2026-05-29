@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 using TMPro;
 
 /// <summary>
@@ -7,8 +8,9 @@ using TMPro;
 /// 씬에 이미 배치된 TMP/Image들을 인스펙터로 연결받아, 코드 생성 없이 기존 UI를 갱신한다.
 ///   - 현재 구역 라벨 / 타이머 / 다음 구역 / 진행바(Fill) / 캐릭터 대사창
 ///
-/// 진행바는 Image.type=Filled의 fillAmount(0~1)로 현재 단계 진행도를 표시한다.
-/// (씬의 Progress/Fill 이 이미 Filled·Horizontal 로 세팅돼 있음)
+/// 진행바는 Image.type=Filled의 fillAmount(0~1)로 "전체 양치 진행도"를 표시한다.
+/// (0 = 시작, 1 = 목표 시간(기본 3분) 도달. 양치를 멈추면 시간이 안 흘러 진행바도 멈춘다.)
+/// 대사가 바뀔 때는 LeanTween으로 알파 0→1 페이드인을 준다.
 /// </summary>
 public class BrushingHudView : MonoBehaviour
 {
@@ -31,7 +33,7 @@ public class BrushingHudView : MonoBehaviour
     [SerializeField] private GameObject nextAreaGroup;
 
     [Header("진행바 (Image type=Filled)")]
-    [Tooltip("현재 단계 진행도를 fillAmount로 표시할 Image (Progress/Fill).")]
+    [Tooltip("전체 양치 진행도를 fillAmount로 표시할 Image (Progress/Fill). 0=시작, 1=목표 시간 도달.")]
     [SerializeField] private Image progressFill;
 
     [Header("캐릭터 대사창")]
@@ -41,10 +43,17 @@ public class BrushingHudView : MonoBehaviour
     [Tooltip("대사창 묶음 (Character Talkballoon). 대사가 없을 때 숨기고 싶으면 연결. 비워도 됨.")]
     [SerializeField] private GameObject dialogueGroup;
 
+    [Tooltip("대사가 바뀔 때 알파 0→1 페이드인에 걸리는 시간(초). 0이면 즉시 표시.")]
+    [SerializeField, Min(0f)] private float dialogueFadeDuration = 0.35f;
+
     [Header("표시 옵션")]
-    [Tooltip("타이머 표시에 쓸 전체 목표 시간 색(리치텍스트). 예: 11151A")]
+    [Tooltip("타이머 표시에 쓸 경과 시간 색(리치텍스트). 예: 11151A")]
     [SerializeField] private string elapsedColorHex = "11151A";
     [SerializeField] private string totalColorHex = "888C92";
+
+    [Header("양치 완료 콜백")]
+    [Tooltip("양치가 모두 끝났을 때 호출된다. 인스펙터에서 결과 화면 전환 등 원하는 동작을 연결.")]
+    [SerializeField] private UnityEvent onBrushingFinished;
 
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
@@ -79,7 +88,7 @@ public class BrushingHudView : MonoBehaviour
         SetTime(0f, e.totalSeconds);
     }
 
-    /// <summary>단계 시작 → 현재/다음 구역 라벨 갱신, 진행바 리셋.</summary>
+    /// <summary>단계 시작 → 현재/다음 구역 라벨 갱신. (진행바는 전체 기준이라 리셋하지 않음)</summary>
     private void OnStepStarted(RoutineStepStartedEvent e)
     {
         if (currentZoneLabel != null) currentZoneLabel.text = ZoneLabels.Korean(e.targetZone);
@@ -87,35 +96,76 @@ public class BrushingHudView : MonoBehaviour
         // 다음 구역 안내 — 마지막 단계면 묶음을 숨긴다.
         if (nextAreaGroup != null) nextAreaGroup.SetActive(e.hasNext);
         if (nextZoneLabel != null && e.hasNext) nextZoneLabel.text = ZoneLabels.Korean(e.nextZone);
-
-        SetFill(0f);
     }
 
-    /// <summary>진행 중 → 진행바 fillAmount + 타이머 갱신.</summary>
+    /// <summary>진행 중 → 전체 양치 진행도로 진행바 + 타이머 갱신.</summary>
     private void OnProgress(RoutineProgressEvent e)
     {
-        float ratio = e.stepTargetSeconds > 0f ? e.stepElapsed / e.stepTargetSeconds : 0f;
+        // 진행바 = 전체 경과 / 전체 목표(3분). 양치를 멈추면 totalElapsed가 안 늘어 진행바도 멈춘다.
+        float ratio = e.totalSeconds > 0f ? e.totalElapsed / e.totalSeconds : 0f;
         SetFill(ratio);
         SetTime(e.totalElapsed, e.totalSeconds);
     }
 
-    /// <summary>루틴 종료 → 진행바 가득 채움.</summary>
+    /// <summary>루틴 종료 → 진행바 가득 채우고 완료 콜백 발화.</summary>
     private void OnRoutineCompleted(RoutineCompletedEvent e)
     {
         SetFill(1f);
         SetTime(e.totalElapsed, e.totalSeconds);
+
+        // 인스펙터 콜백 + 코드 훅 둘 다 호출 — 둘 중 편한 쪽으로 결과 처리.
+        onBrushingFinished?.Invoke();
+        HandleBrushingFinished(e);
     }
 
-    /// <summary>대사 이벤트 → 대사창 텍스트 갱신.</summary>
+    /// <summary>대사 이벤트 → 대사창 텍스트 갱신 + 페이드인.</summary>
     private void OnDialogue(CharacterDialogueEvent e)
     {
         if (dialogueGroup != null) dialogueGroup.SetActive(true);
-        if (dialogueLabel != null) dialogueLabel.text = e.text;
+        if (dialogueLabel == null) return;
+
+        dialogueLabel.text = e.text;
+        PlayDialogueFade();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 사용자 확장 지점
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 양치가 모두 끝났을 때 호출되는 코드 훅.
+    /// 결과 화면 전환·점수 저장 등 마무리 로직을 여기에 채워 넣으면 된다.
+    /// (인스펙터 onBrushingFinished 콜백과 별개로, 코드로 다루고 싶을 때 사용)
+    /// </summary>
+    private void HandleBrushingFinished(RoutineCompletedEvent e)
+    {
+        // TODO: 양치 종료 후 동작 구현
+        //   예) GameMng.ins.ChangeState(GameMng.GameState.Result);
+        //   e.allStepsReachedTarget 로 성공/미완료 분기, e.totalElapsed 로 소요 시간 활용.
+        Debug.Log($"[HUD] 양치 완료 — total={e.totalElapsed:F1}s, allReached={e.allStepsReachedTarget}");
     }
 
     // ─────────────────────────────────────────────────────────────
     // 헬퍼
     // ─────────────────────────────────────────────────────────────
+
+    /// <summary>대사창 텍스트 알파를 0→1로 페이드인 (LeanTween).</summary>
+    private void PlayDialogueFade()
+    {
+        if (dialogueFadeDuration <= 0f)
+        {
+            dialogueLabel.alpha = 1f;
+            return;
+        }
+
+        // 이전 페이드가 진행 중이면 취소하고 처음부터 — 대사가 연달아 바뀌어도 깔끔하게.
+        LeanTween.cancel(dialogueLabel.gameObject);
+        dialogueLabel.alpha = 0f;
+        // TMP_Text는 UGUI Text가 아니라서 textAlpha 대신 value 콜백으로 alpha를 직접 보간한다.
+        LeanTween.value(dialogueLabel.gameObject, a => dialogueLabel.alpha = a, 0f, 1f, dialogueFadeDuration)
+                 .setEase(LeanTweenType.easeOutSine)
+                 .setIgnoreTimeScale(true);
+    }
 
     /// <summary>진행바 fillAmount 설정 (0~1 클램프).</summary>
     private void SetFill(float ratio)
