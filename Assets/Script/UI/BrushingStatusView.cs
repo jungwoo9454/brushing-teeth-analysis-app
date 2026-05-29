@@ -19,6 +19,12 @@ public class BrushingStatusView : MonoBehaviour
     // 인스펙터 노출 필드
     // ─────────────────────────────────────────────────────────────
 
+    [Header("Debug Overlay")]
+    [Tooltip("켜면 좌상단에 ML 상태(현재 구역/양치 상태/얼굴 인식) 디버그 오버레이를 표시한다. " +
+             "끄면 UI를 만들지 않고 이벤트도 구독하지 않아 화면에 아무것도 그리지 않는다. " +
+             "MediaPipe/ML 검증용 — 평소에는 꺼두는 것을 권장.")]
+    [SerializeField] private bool showOverlay = true;
+
     [Header("Font")]
     [Tooltip("한글 표시용 Font. 비워두면 OS 한글 폰트(Malgun Gothic)로 자동 폴백한다.")]
     [SerializeField] private Font font;
@@ -47,9 +53,26 @@ public class BrushingStatusView : MonoBehaviour
     // Unity 생명주기
     // ─────────────────────────────────────────────────────────────
 
-    private void Awake() => BuildUI();
+    private void Awake()
+    {
+        // 오버레이를 끄면 UI 생성과 이벤트 구독을 모두 생략한다.
+        // enabled = false 로 두면 이후 OnEnable이 호출되지 않아 이벤트 구독도 일어나지 않는다.
+        if (!showOverlay)
+        {
+            enabled = false;
+            return;
+        }
 
-    private void OnEnable() => EventBus.Subscribe<ZoneDetectedEvent>(OnZone);
+        BuildUI();
+    }
+
+    // BuildUI를 거치지 않은(showOverlay=false) 상태에서 OnEnable이 호출되면
+    // _zoneText 등이 null이라 OnZone에서 NRE가 난다. _zoneText 생성 여부로 가드한다.
+    private void OnEnable()
+    {
+        if (_zoneText == null) return;
+        EventBus.Subscribe<ZoneDetectedEvent>(OnZone);
+    }
 
     private void OnDisable() => EventBus.Unsubscribe<ZoneDetectedEvent>(OnZone);
 
@@ -84,23 +107,9 @@ public class BrushingStatusView : MonoBehaviour
         for (int i = 0; i < zones.Length; i++)
         {
             if (i > 0) sb.Append(", ");
-            sb.Append(ZoneLabel(zones[i]));
+            sb.Append(ZoneLabels.Korean(zones[i]));
         }
         return sb.ToString();
-    }
-
-    /// <summary>UiZone enum → 한글 라벨.</summary>
-    private static string ZoneLabel(UiZone zone)
-    {
-        switch (zone)
-        {
-            case UiZone.UpperLeft:  return "왼쪽 윗니";
-            case UiZone.UpperRight: return "오른쪽 윗니";
-            case UiZone.LowerLeft:  return "왼쪽 아랫니";
-            case UiZone.LowerRight: return "오른쪽 아랫니";
-            case UiZone.Front:      return "앞니";
-            default:                return zone.ToString();
-        }
     }
 
     // ─────────────────────────────────────────────────────────────
