@@ -102,12 +102,18 @@ public class BrushingRoutineRunner : MonoBehaviour
         if (!isActive) return;
 
         float dt = Time.deltaTime;
-        totalElapsed += dt;
 
-        // 현재 차례 구역을 실제로 닦는 중일 때만 단계 시간 가산.
-        if (latestEngaged && IsBrushingTarget())
+        // 양치 중(engaged)일 때만 시간이 흐른다 — 손을 떼면 전체 시간도 멈춘다.
+        // 진행바는 이 totalElapsed 기준이라, 양치를 멈추면 진행바도 멈춘다.
+        if (latestEngaged)
         {
-            stepElapsed += dt;
+            totalElapsed += dt;
+
+            // 그중에서도 현재 차례 구역을 실제로 닦을 때만 단계 시간 가산.
+            if (IsBrushingTarget())
+            {
+                stepElapsed += dt;
+            }
         }
 
         // Progress 이벤트 발행(throttle).

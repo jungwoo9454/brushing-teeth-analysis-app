@@ -33,10 +33,17 @@ public class DialogueDirector : MonoBehaviour
     [Tooltip("시간이 다 됐지만 일부 구역이 부족했을 때.")]
     [SerializeField] private string finishIncompleteText = "다 했어요! 다음엔 구석구석 더 닦아봐요";
 
+    [Tooltip("한동안 양치를 멈췄을 때. {zone} 사용 가능.")]
+    [SerializeField] private string idleTemplate = "양치를 하고 있지 않아요! {zone}를 닦아주세요";
+
     [Header("Behavior")]
     [Tooltip("같은 구역을 벗어났을 때 'OO 닦아주세요' 교정 멘트를 다시 띄우기까지의 최소 간격(초). " +
              "너무 잦은 잔소리를 막는다.")]
     [SerializeField, Min(0f)] private float correctCooldown = 4f;
+
+    [Tooltip("양치를 멈춘 뒤 '양치를 하고 있지 않아요' 멘트를 띄우기까지 기다리는 시간(초). " +
+             "잠깐 손 떼는 것엔 반응하지 않도록 약간의 유예를 둔다.")]
+    [SerializeField, Min(0f)] private float idleThreshold = 2f;
 
     [Tooltip("켜면 발행되는 대사를 콘솔에도 찍는다 — 대사창 UI 구현 전 검증용.")]
     [SerializeField] private bool logEvents = true;
@@ -50,6 +57,12 @@ public class DialogueDirector : MonoBehaviour
 
     // 직전 Progress의 onTarget 상태 — 벗어나는 "전환 순간"에만 교정 멘트를 띄우기 위함.
     private bool wasOnTarget = true;
+
+    // 양치를 멈춘 채 흐른 시간(초). idleThreshold를 넘으면 '양치 안 함' 멘트를 한 번 띄운다.
+    private float idleElapsed;
+
+    // 이번 idle 구간에서 이미 멘트를 띄웠는지 — 멈춰 있는 동안 반복 발화를 막는다.
+    private bool idleSpoken;
 
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
@@ -80,6 +93,8 @@ public class DialogueDirector : MonoBehaviour
     {
         wasOnTarget = true;       // 새 단계 진입 직후엔 교정 멘트를 바로 띄우지 않는다.
         lastCorrectTime = Time.time;
+        idleElapsed = 0f;         // 새 단계 안내가 곧 나오므로 idle 카운터도 리셋.
+        idleSpoken = false;
         Speak(guideTemplate, e.targetZone, DialogueKind.Guide);
     }
 
@@ -89,10 +104,28 @@ public class DialogueDirector : MonoBehaviour
     /// </summary>
     private void OnProgress(RoutineProgressEvent e)
     {
-        // 대상을 닦다가(또는 대기) → 다른 구역을 닦기 시작한 순간.
-        bool startedWrongZone = !e.isOnTarget
-                                && e.currentBrushingZone.HasValue
-                                && e.currentBrushingZone.Value != e.targetZone;
+        bool isBrushing = e.currentBrushingZone.HasValue;
+
+        if (!isBrushing)
+        {
+            // 양치를 멈춘 상태 — idle 시간을 누적하고, 임계치를 넘으면 한 번만 안내.
+            idleElapsed += Time.deltaTime;
+            if (idleElapsed >= idleThreshold && !idleSpoken)
+            {
+                idleSpoken = true;
+                Speak(idleTemplate, e.targetZone, DialogueKind.Idle);
+            }
+            // 멈춰 있는 동안엔 구역 교정 로직을 돌릴 필요가 없다.
+            wasOnTarget = true;   // 다시 닦기 시작하면 '벗어남' 전환으로 잡히지 않게.
+            return;
+        }
+
+        // 다시 양치를 시작했으니 idle 카운터 리셋.
+        idleElapsed = 0f;
+        idleSpoken = false;
+
+        // 대상을 닦다가(또는 대기) → 다른 구역을 닦기 시작한 순간에만 교정 멘트.
+        bool startedWrongZone = !e.isOnTarget && e.currentBrushingZone.Value != e.targetZone;
 
         if (startedWrongZone && wasOnTarget && Time.time - lastCorrectTime >= correctCooldown)
         {
@@ -100,7 +133,7 @@ public class DialogueDirector : MonoBehaviour
             Speak(correctTemplate, e.targetZone, DialogueKind.Correct);
         }
 
-        wasOnTarget = e.isOnTarget || !e.currentBrushingZone.HasValue;
+        wasOnTarget = e.isOnTarget;
     }
 
     /// <summary>단계 종료 → 목표 달성이면 칭찬, 미달이면 격려.</summary>
