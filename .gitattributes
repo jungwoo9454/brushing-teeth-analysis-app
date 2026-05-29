@@ -9,6 +9,10 @@
 Assets/Font/**/*.otf filter=lfs diff=lfs merge=lfs -text
 Assets/Font/**/*.ttf filter=lfs diff=lfs merge=lfs -text
 
+# TextMeshPro SDF 폰트 아틀라스 — 이 폴더의 .asset만 수십 MB 바이너리라 LFS로.
+# (다른 Unity .asset은 YAML 텍스트라 그대로 두고 diff 가능하게 유지)
+Assets/Font/TMP/*.asset filter=lfs diff=lfs merge=lfs -text
+
 # ML ONNX 모델 (서브모듈 Assets/Model/ 외 직접 들어올 경우 대비)
 *.onnx filter=lfs diff=lfs merge=lfs -text
 
