@@ -1350,8 +1350,12 @@ MonoBehaviour:
   progressFill: {fileID: 1467598620}
   dialogueLabel: {fileID: 1620086128}
   dialogueGroup: {fileID: 1569137908}
+  dialogueFadeDuration: 0.35
   elapsedColorHex: 11151A
   totalColorHex: 888C92
+  onBrushingFinished:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!21 &842060010
 Material:
   serializedVersion: 8
@@ -3085,7 +3089,10 @@ MonoBehaviour:
   finishSuccessText: "\uC591\uCE58 \uC644\uC131! \uC815\uB9D0 \uC798\uD588\uC5B4\uC694!"
   finishIncompleteText: "\uB2E4 \uD588\uC5B4\uC694! \uB2E4\uC74C\uC5D4 \uAD6C\uC11D\uAD6C\uC11D
     \uB354 \uB2E6\uC544\uBD10\uC694"
+  idleTemplate: "\uC591\uCE58\uB97C \uD558\uACE0 \uC788\uC9C0 \uC54A\uC544\uC694!
+    {zone}\uB97C \uB2E6\uC544\uC8FC\uC138\uC694"
   correctCooldown: 4
+  idleThreshold: 2
   logEvents: 1
 --- !u!114 &1809714103
 MonoBehaviour:
