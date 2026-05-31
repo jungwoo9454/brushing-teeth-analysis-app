@@ -1,12 +1,16 @@
+using System.Text;
+
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 using TMPro;
 
 /// <summary>
-/// 양치 씬 상단 HUD를 루틴/대사 이벤트에 바인딩하는 뷰.
+/// 양치 씬 상단 HUD를 ML 검출/루틴/대사 이벤트에 바인딩하는 뷰.
 /// 씬에 이미 배치된 TMP/Image들을 인스펙터로 연결받아, 코드 생성 없이 기존 UI를 갱신한다.
-///   - 현재 구역 라벨 / 타이머 / 다음 구역 / 진행바(Fill) / 캐릭터 대사창
+///   - 양치 상태 라벨(양치 중/양치 하지 않는 중) / 현재 닦는 구역 / 타이머 / 진행바(Fill) / 캐릭터 대사창
+///   양치 상태·현재 구역은 ML의 ZoneDetectedEvent(매 프레임)로,
+///   타이머·진행바는 루틴 이벤트(RoutineStarted/Progress/Completed)로 갱신한다.
 ///
 /// 진행바는 Image.type=Filled의 fillAmount(0~1)로 "전체 양치 진행도"를 표시한다.
 /// (0 = 시작, 1 = 목표 시간(기본 3분) 도달. 양치를 멈추면 시간이 안 흘러 진행바도 멈춘다.)
@@ -18,18 +22,20 @@ public class BrushingHudView : MonoBehaviour
     // 인스펙터 연결 — 씬의 기존 오브젝트를 드래그
     // ─────────────────────────────────────────────────────────────
 
-    [Header("현재 구역 / 타이머")]
-    [Tooltip("현재 닦는 구역명을 표시할 TMP (Top/GameObject/양치 중).")]
+    [Header("양치 상태 / 타이머")]
+    [Tooltip("양치 중인지 여부를 표시할 TMP (Top/GameObject/양치 중). " +
+             "양치 중이면 \"양치 중\", 아니면 \"양치 하지 않는 중\". ZoneDetectedEvent.isEngaged로 갱신.")]
     [SerializeField] private TMP_Text currentZoneLabel;
 
     [Tooltip("전체 경과/목표 시간을 표시할 TMP (Top/GameObject/Time).")]
     [SerializeField] private TMP_Text timeLabel;
 
-    [Header("다음 구역")]
-    [Tooltip("다음 구역명을 표시할 TMP (Top/NextArea/NextArea).")]
+    [Header("현재 닦는 구역")]
+    [Tooltip("지금 닦고 있는 구역명을 표시할 TMP (Top/NextArea/NextArea). " +
+             "닦고 있지 않으면 \"없음\". ZoneDetectedEvent.uiZones로 갱신.")]
     [SerializeField] private TMP_Text nextZoneLabel;
 
-    [Tooltip("다음 구역 안내 묶음 (Top/NextArea). 마지막 단계에서 통째로 숨긴다. 비워도 됨.")]
+    [Tooltip("현재 구역 안내 묶음 (Top/NextArea). OnEnable에서 항상 보이도록 켠다. 비워도 됨.")]
     [SerializeField] private GameObject nextAreaGroup;
 
     [Header("진행바 (Image type=Filled)")]
@@ -56,25 +62,47 @@ public class BrushingHudView : MonoBehaviour
     [SerializeField] private UnityEvent onBrushingFinished;
 
     // ─────────────────────────────────────────────────────────────
+    // 내부 상태 — 실시간 라벨(양치 상태/현재 구역) 변화 감지용 캐시.
+    // 매 프레임 오는 ZoneDetectedEvent에서 값이 바뀐 경우에만 TMP에 써서
+    // 불필요한 메시 재생성/GC를 피한다.
+    // ─────────────────────────────────────────────────────────────
+
+    private const int NoneKey = -1;             // "없음"(미검출)을 나타내는 zone key.
+
+    private bool _engagedShown;                 // 마지막으로 표시한 isEngaged.
+    private bool _hasEngagedShown;              // _engagedShown이 유효한지(첫 갱신 가드).
+    private int  _zoneKeyShown = int.MinValue;  // 마지막으로 표시한 구역 key.
+
+    // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
     // ─────────────────────────────────────────────────────────────
 
     private void OnEnable()
     {
         EventBus.Subscribe<RoutineStartedEvent>(OnRoutineStarted);
-        EventBus.Subscribe<RoutineStepStartedEvent>(OnStepStarted);
         EventBus.Subscribe<RoutineProgressEvent>(OnProgress);
         EventBus.Subscribe<RoutineCompletedEvent>(OnRoutineCompleted);
         EventBus.Subscribe<CharacterDialogueEvent>(OnDialogue);
+        // 실시간 양치 상태/현재 구역 — ML 파이프라인이 매 프레임 발행.
+        EventBus.Subscribe<ZoneDetectedEvent>(OnZoneDetected);
+
+        // 현재 구역 표시는 항상 보이도록(루틴 시절 숨겨졌을 수 있어 명시적으로 켠다).
+        if (nextAreaGroup != null) nextAreaGroup.SetActive(true);
+
+        // 변화 감지 캐시 리셋 + 첫 이벤트 수신 전 기본 표시값.
+        _hasEngagedShown = false;
+        _zoneKeyShown = int.MinValue;
+        ShowEngaged(false);
+        ShowCurrentZone(null, NoneKey);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<RoutineStartedEvent>(OnRoutineStarted);
-        EventBus.Unsubscribe<RoutineStepStartedEvent>(OnStepStarted);
         EventBus.Unsubscribe<RoutineProgressEvent>(OnProgress);
         EventBus.Unsubscribe<RoutineCompletedEvent>(OnRoutineCompleted);
         EventBus.Unsubscribe<CharacterDialogueEvent>(OnDialogue);
+        EventBus.Unsubscribe<ZoneDetectedEvent>(OnZoneDetected);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -88,14 +116,16 @@ public class BrushingHudView : MonoBehaviour
         SetTime(0f, e.totalSeconds);
     }
 
-    /// <summary>단계 시작 → 현재/다음 구역 라벨 갱신. (진행바는 전체 기준이라 리셋하지 않음)</summary>
-    private void OnStepStarted(RoutineStepStartedEvent e)
+    /// <summary>
+    /// 매 프레임 ML 결과 → 실시간 라벨 2종 갱신.
+    ///   - "양치 중" 라벨: isEngaged → "양치 중" / "양치 하지 않는 중"
+    ///   - "현재 닦는 구역" 라벨: uiZones → 구역명(들) / "없음"
+    /// 매 프레임 호출되므로 값이 바뀐 경우에만 TMP에 쓴다(ShowEngaged/ShowCurrentZone 내부 가드).
+    /// </summary>
+    private void OnZoneDetected(ZoneDetectedEvent e)
     {
-        if (currentZoneLabel != null) currentZoneLabel.text = ZoneLabels.Korean(e.targetZone);
-
-        // 다음 구역 안내 — 마지막 단계면 묶음을 숨긴다.
-        if (nextAreaGroup != null) nextAreaGroup.SetActive(e.hasNext);
-        if (nextZoneLabel != null && e.hasNext) nextZoneLabel.text = ZoneLabels.Korean(e.nextZone);
+        ShowEngaged(e.isEngaged);
+        ShowCurrentZone(e.uiZones, ZoneKey(e.uiZones));
     }
 
     /// <summary>진행 중 → 전체 양치 진행도로 진행바 + 타이머 갱신.</summary>
@@ -126,6 +156,54 @@ public class BrushingHudView : MonoBehaviour
 
         dialogueLabel.text = e.text;
         PlayDialogueFade();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 실시간 라벨 갱신 (변화가 있을 때만 TMP에 쓴다)
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>"양치 중" 라벨 갱신 — 상태가 바뀐 경우에만.</summary>
+    private void ShowEngaged(bool engaged)
+    {
+        if (currentZoneLabel == null) return;
+        if (_hasEngagedShown && _engagedShown == engaged) return;
+        _engagedShown = engaged;
+        _hasEngagedShown = true;
+        currentZoneLabel.text = engaged ? "양치 중" : "양치 하지 않는 중";
+    }
+
+    /// <summary>"현재 닦는 구역" 라벨 갱신 — key가 바뀐 경우에만 문자열을 새로 만든다.</summary>
+    private void ShowCurrentZone(UiZone[] zones, int zoneKey)
+    {
+        if (nextZoneLabel == null) return;
+        if (_zoneKeyShown == zoneKey) return;
+        _zoneKeyShown = zoneKey;
+        nextZoneLabel.text = (zoneKey == NoneKey) ? "없음" : DescribeZones(zones);
+    }
+
+    /// <summary>uiZones를 변화 감지용 정수 key로 압축 (없음=-1). 매 프레임 호출되므로 무할당.</summary>
+    private static int ZoneKey(UiZone[] zones)
+    {
+        if (zones == null || zones.Length == 0) return NoneKey;
+        int key = 0;
+        for (int i = 0; i < zones.Length; i++)
+            key = key * 8 + ((int)zones[i] + 1);
+        return key;
+    }
+
+    /// <summary>uiZones를 "왼쪽 윗니, 왼쪽 아랫니" 같은 한글 문자열로. (key가 바뀔 때만 호출)</summary>
+    private static string DescribeZones(UiZone[] zones)
+    {
+        if (zones == null || zones.Length == 0) return "없음";
+        if (zones.Length == 1) return ZoneLabels.Korean(zones[0]);
+
+        var sb = new StringBuilder();
+        for (int i = 0; i < zones.Length; i++)
+        {
+            if (i > 0) sb.Append(", ");
+            sb.Append(ZoneLabels.Korean(zones[i]));
+        }
+        return sb.ToString();
     }
 
     // ─────────────────────────────────────────────────────────────
