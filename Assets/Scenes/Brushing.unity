@@ -13245,6 +13245,7 @@ GameObject:
   - component: {fileID: 1809714103}
   - component: {fileID: 1809714102}
   - component: {fileID: 1809714104}
+  - component: {fileID: 1809714105}
   m_Layer: 0
   m_Name: BrushingPipelineRig
   m_TagString: Untagged
@@ -13360,10 +13361,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eaa76bccfc5e042f1928868057c97c63, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BrushingSession
-  targetTotalSeconds: 120
-  targetPerZoneSeconds: 24
+  targetTotalSeconds: 180
+  targetPerZoneSeconds: 36
   autoStartOnEnable: 1
   autoEndOnTargetReached: 1
+  autoEndAfterSeconds: 180
   tickInterval: 0.1
   logSessionEvents: 0
 --- !u!114 &1809714102
@@ -13424,6 +13426,19 @@ MonoBehaviour:
   adviceCooldown: 12
   adviceTemplate: "{zone}\uAC00 \uC544\uC9C1 \uBD80\uC871\uD574\uC694! \uB354 \uB2E6\uC544\uC8FC\uC138\uC694"
   logEvents: 0
+--- !u!114 &1809714105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1809714093}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 547e02ec1ca44384e91f1f310c67a746, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BrushingRecordWriter
+  logRecords: 1
 --- !u!1 &1810895483
 GameObject:
   m_ObjectHideFlags: 0
