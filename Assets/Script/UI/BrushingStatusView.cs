@@ -9,8 +9,9 @@ using UnityEngine.UI;
 ///   1) 칫솔이 닿은 5-zone 구역 (왼쪽/오른쪽 윗니·아랫니, 앞니)
 ///   2) 현재 양치 중인지 여부 (isEngaged)
 ///   3) 얼굴 인식(MediaPipe)이 잘 되는지 여부 (hasFace)
+/// 추가로 BrushingSessionTickEvent를 구독해 5개 구역별 누적 양치 시간(초/비율)도 함께 표시한다.
 ///
-/// UI는 코드로 직접 생성한다 — 전용 ScreenSpaceOverlay Canvas + Text 3줄.
+/// UI는 코드로 직접 생성한다 — 전용 ScreenSpaceOverlay Canvas + Text 줄들.
 /// 프리팹/씬 배치가 필요 없어, 이 컴포넌트 하나만 씬에 두면 바로 동작한다.
 /// </summary>
 public class BrushingStatusView : MonoBehaviour
@@ -20,7 +21,7 @@ public class BrushingStatusView : MonoBehaviour
     // ─────────────────────────────────────────────────────────────
 
     [Header("Debug Overlay")]
-    [Tooltip("켜면 좌상단에 ML 상태(현재 구역/양치 상태/얼굴 인식) 디버그 오버레이를 표시한다. " +
+    [Tooltip("켜면 좌상단에 ML 상태(현재 구역/양치 상태/얼굴 인식)와 구역별 누적 시간 디버그 오버레이를 표시한다. " +
              "끄면 UI를 만들지 않고 이벤트도 구독하지 않아 화면에 아무것도 그리지 않는다. " +
              "MediaPipe/ML 검증용 — 평소에는 꺼두는 것을 권장.")]
     [SerializeField] private bool showOverlay = true;
@@ -43,6 +44,10 @@ public class BrushingStatusView : MonoBehaviour
     private Text _zoneText;
     private Text _brushingText;
     private Text _faceText;
+
+    // 구역별 누적 시간 표시 — 헤더 1줄 + UiZone 개수만큼의 줄(인덱스 = (int)UiZone).
+    private Text _zoneTimeHeader;
+    private Text[] _zoneTimeLines;
 
     // 부울 상태를 한눈에 구분하기 위한 색상.
     private static readonly Color OkColor   = new Color(0.45f, 0.92f, 0.45f);  // 정상/양치 중
@@ -67,20 +72,25 @@ public class BrushingStatusView : MonoBehaviour
     }
 
     // BuildUI를 거치지 않은(showOverlay=false) 상태에서 OnEnable이 호출되면
-    // _zoneText 등이 null이라 OnZone에서 NRE가 난다. _zoneText 생성 여부로 가드한다.
+    // _zoneText 등이 null이라 핸들러에서 NRE가 난다. _zoneText 생성 여부로 가드한다.
     private void OnEnable()
     {
         if (_zoneText == null) return;
         EventBus.Subscribe<ZoneDetectedEvent>(OnZone);
+        EventBus.Subscribe<BrushingSessionTickEvent>(OnSessionTick);
     }
 
-    private void OnDisable() => EventBus.Unsubscribe<ZoneDetectedEvent>(OnZone);
+    private void OnDisable()
+    {
+        EventBus.Unsubscribe<ZoneDetectedEvent>(OnZone);
+        EventBus.Unsubscribe<BrushingSessionTickEvent>(OnSessionTick);
+    }
 
     // ─────────────────────────────────────────────────────────────
     // 이벤트 처리
     // ─────────────────────────────────────────────────────────────
 
-    /// <summary>ZoneDetectedEvent 수신 → 3개 Text 갱신.</summary>
+    /// <summary>ZoneDetectedEvent 수신 → 3개 상태 Text 갱신.</summary>
     private void OnZone(ZoneDetectedEvent e)
     {
         // (1) 현재 구역 — uiZones(5-zone 매핑)를 한글 라벨로. 비어 있으면 미검출.
@@ -93,6 +103,26 @@ public class BrushingStatusView : MonoBehaviour
         // (3) 얼굴 인식 여부 — hasFace: MediaPipe 얼굴 검출 성공 여부.
         _faceText.text = "얼굴 인식: " + (e.hasFace ? "정상" : "안 됨");
         _faceText.color = e.hasFace ? OkColor : BadColor;
+    }
+
+    /// <summary>
+    /// BrushingSessionTickEvent 수신 → 구역별 누적 양치 시간/비율 갱신.
+    /// zoneElapsed는 인덱스 = (int)UiZone, 길이 = UiZone 개수(5)인 누적 시간(초) 배열이다.
+    /// </summary>
+    private void OnSessionTick(BrushingSessionTickEvent e)
+    {
+        if (_zoneTimeLines == null) return;
+
+        float total = e.totalElapsed;
+        _zoneTimeHeader.text = $"구역별 누적 (전체 {total:F0}초)";
+
+        var zones = e.zoneElapsed;
+        for (int i = 0; i < _zoneTimeLines.Length; i++)
+        {
+            float sec = (zones != null && i < zones.Length) ? zones[i] : 0f;
+            float pct = total > 0f ? sec / total * 100f : 0f;
+            _zoneTimeLines[i].text = $"{ZoneLabels.Korean((UiZone)i)}: {sec:F1}초 ({pct:F0}%)";
+        }
     }
 
     /// <summary>
@@ -116,15 +146,19 @@ public class BrushingStatusView : MonoBehaviour
     // UI 생성
     // ─────────────────────────────────────────────────────────────
 
-    /// <summary>전용 Canvas + 반투명 패널 + Text 3줄을 코드로 생성한다.</summary>
+    /// <summary>전용 Canvas + 반투명 패널 + Text 줄들을 코드로 생성한다.</summary>
     private void BuildUI()
     {
         var resolvedFont = ResolveFont();
 
+        int zoneCount = System.Enum.GetValues(typeof(UiZone)).Length;
+        // 상태 3줄 + 구역별 헤더 1줄 + 구역별 누적 zoneCount줄.
+        int lineCount = 3 + 1 + zoneCount;
+
         const float pad = 16f;
         float lineHeight = fontSize + 12f;
         float panelWidth = 600f;
-        float panelHeight = pad * 2f + lineHeight * 3f;
+        float panelHeight = pad * 2f + lineHeight * lineCount;
 
         // 전용 오버레이 Canvas — 카메라 프리뷰 Canvas 위에 그리도록 sortingOrder를 높게.
         var canvasGo = new GameObject("BrushingStatusCanvas");
@@ -147,10 +181,16 @@ public class BrushingStatusView : MonoBehaviour
         bg.color = new Color(0f, 0f, 0f, 0.55f);
         bg.raycastTarget = false;
 
-        // 3줄 Text — 패널 안에서 위→아래로 배치.
+        // 상태 3줄 Text — 패널 안에서 위→아래로 배치.
         _zoneText     = CreateLine(panel, resolvedFont, 0, pad, lineHeight, panelWidth);
         _brushingText = CreateLine(panel, resolvedFont, 1, pad, lineHeight, panelWidth);
         _faceText     = CreateLine(panel, resolvedFont, 2, pad, lineHeight, panelWidth);
+
+        // 구역별 누적 시간 — 헤더 1줄 + zoneCount줄(상태 3줄 아래에 이어서 배치).
+        _zoneTimeHeader = CreateLine(panel, resolvedFont, 3, pad, lineHeight, panelWidth);
+        _zoneTimeLines = new Text[zoneCount];
+        for (int i = 0; i < zoneCount; i++)
+            _zoneTimeLines[i] = CreateLine(panel, resolvedFont, 4 + i, pad, lineHeight, panelWidth);
 
         // 첫 이벤트 수신 전 초기 표시값.
         _zoneText.text = "현재 구역: — (감지 안 됨)";
@@ -158,6 +198,10 @@ public class BrushingStatusView : MonoBehaviour
         _brushingText.color = IdleColor;
         _faceText.text = "얼굴 인식: 안 됨";
         _faceText.color = BadColor;
+
+        _zoneTimeHeader.text = "구역별 누적 (전체 0초)";
+        for (int i = 0; i < zoneCount; i++)
+            _zoneTimeLines[i].text = $"{ZoneLabels.Korean((UiZone)i)}: 0.0초 (0%)";
     }
 
     /// <summary>패널 안에 좌상단 기준으로 한 줄짜리 Text를 만든다.</summary>
