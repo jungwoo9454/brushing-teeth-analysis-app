@@ -28,7 +28,7 @@ AI로 아이의 양치 동작을 실시간 분석하고, AR·게임 요소로 �
 
 | 구분 | 사용 기술 |
 |---|---|
-| 엔진 | Unity 6 (6000.4.7f1), 2D URP |
+| 엔진 | Unity 6 (6000.4.9f1), 2D URP |
 | 언어 | C# |
 | 얼굴 인식 | MediaPipe Unity Plugin (Face Mesh) |
 | 칫솔 검출 | YOLOv8n-pose v3 (ONNX) |
@@ -89,7 +89,7 @@ git submodule update --init
 git lfs install && git lfs pull
 ```
 
-1. **Unity 6000.4.7f1**로 프로젝트를 엽니다.
+1. **Unity 6000.4.9f1**로 프로젝트를 엽니다.
 2. `Assets/Scenes/Main.unity` 씬을 실행합니다.
 
 ## 팀원
