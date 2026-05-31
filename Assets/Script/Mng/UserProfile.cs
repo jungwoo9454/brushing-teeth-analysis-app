@@ -9,9 +9,6 @@ using System;
 [Serializable]
 public class UserProfile
 {
-    /// <summary>유저 고유 식별자. 최초 1회 자동 생성 후 변경하지 않는다.</summary>
-    public string uuid;
-
     /// <summary>표시용 유저 이름. 기본은 빈 문자열, 온보딩/설정에서 채운다.</summary>
     public string userName = "";
 
