@@ -44,6 +44,7 @@ public class BrushingRecordWriter : MonoBehaviour
             // id는 현재 단계에서 비워둔다(DB 전환 시 PK 발급). 정렬은 recordedAtUnix 사용.
             recordedAt           = now.ToString("o"),
             recordedAtUnix       = now.ToUnixTimeSeconds(),
+            timeSlot             = BrushingTimeSlot.Korean(now),
             score                = result.score,
             totalBrushingSeconds = e.totalElapsed,
             sessionSeconds       = e.targetTotal,
@@ -64,10 +65,21 @@ public class BrushingRecordWriter : MonoBehaviour
             Debug.LogError($"[BrushingRecord] 저장 실패: {ex.Message}");
         }
 
+        // 3.5) 연속 양치일수 — 방금 저장한 기록까지 포함해 집계(같은 날 여러 번은 1일로).
+        int streakDays = 0;
+        try
+        {
+            streakDays = BrushingStreak.Compute(_repository.LoadAll());
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[BrushingRecord] 연속일수 계산 실패: {ex.Message}");
+        }
+
         if (logRecords)
-            Debug.Log($"[BrushingRecord] 저장 — score={record.score}, " +
+            Debug.Log($"[BrushingRecord] 저장 — score={record.score}, slot={record.timeSlot}, " +
                       $"engaged={record.totalBrushingSeconds:F1}s/{record.sessionSeconds:F0}s, " +
-                      $"longestIdle={record.longestIdleSeconds:F1}s, at={record.recordedAt}");
+                      $"longestIdle={record.longestIdleSeconds:F1}s, streak={streakDays}일, at={record.recordedAt}");
 
         // 4) 결과 이벤트 발행 (리포트 UI 등에서 구독).
         EventBus.Publish(new BrushingScoredEvent
@@ -77,6 +89,8 @@ public class BrushingRecordWriter : MonoBehaviour
             sessionSeconds       = e.targetTotal,
             zoneSeconds          = record.zoneSeconds,
             breakdown            = result,
+            targetPerZoneSeconds = e.targetPerZone,
+            streakDays           = streakDays,
         });
     }
 }

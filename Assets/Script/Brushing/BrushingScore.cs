@@ -89,4 +89,10 @@ public struct BrushingScoredEvent
     public float sessionSeconds;        // 세션 길이(3분 창)
     public float[] zoneSeconds;         // 구역별 누적 시간
     public BrushingScoreResult breakdown;
+
+    /// <summary>구역당 목표 시간(초). 결과 화면이 '아직 덜 닦은 구역'을 판별하는 데 사용.</summary>
+    public float targetPerZoneSeconds;
+
+    /// <summary>연속 양치일수(오늘 포함). 결과 화면 "N일 연속" 표시용.</summary>
+    public int   streakDays;
 }

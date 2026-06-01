@@ -407,6 +407,7 @@ GameObject:
   - component: {fileID: 1488160445369766327}
   - component: {fileID: 8518720379961738774}
   - component: {fileID: 7853666361577347}
+  - component: {fileID: 172370784622707750}
   m_Layer: 0
   m_Name: BrushingFinish
   m_TagString: Untagged
@@ -423,7 +424,7 @@ RectTransform:
   m_GameObject: {fileID: 1892007969210588317}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8094915471639688613}
@@ -498,6 +499,24 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &172370784622707750
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1892007969210588317}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19905fc6e88de4571ad3d0672084ae74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BrushingFinishView
+  scoreText: {fileID: 8486249917099547988}
+  titleText: {fileID: 7260724961318528984}
+  messageLine1: {fileID: 4658785429124547208}
+  messageLine2: {fileID: 5427218355478778470}
+  sessionInfoText: {fileID: 5093671409640688835}
+  streakText: {fileID: 865821879001123215}
 --- !u!1 &2687231281830151809
 GameObject:
   m_ObjectHideFlags: 0
