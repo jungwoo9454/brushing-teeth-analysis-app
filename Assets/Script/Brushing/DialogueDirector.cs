@@ -27,6 +27,9 @@ public class DialogueDirector : MonoBehaviour
     [Tooltip("단계를 잘 마쳤을 때. {zone} 사용 가능. 예: \"{zone} 깨끗해졌어요!\"")]
     [SerializeField] private string stepPraiseTemplate = "{zone} 깨끗해졌어요!";
 
+    [Tooltip("새 구역 안내인데 이미 그 구역을 닦고 있을 때. 예: \"잘하고 있어요! 이대로 계속 하세요\"")]
+    [SerializeField] private string alreadyOnTargetTemplate = "잘하고 있어요! 이대로 계속 하세요";
+
     [Tooltip("루틴 전체를 잘 마쳤을 때.")]
     [SerializeField] private string finishSuccessText = "양치 완성! 정말 잘했어요!";
 
@@ -44,6 +47,10 @@ public class DialogueDirector : MonoBehaviour
     [Tooltip("양치를 멈춘 뒤 '양치를 하고 있지 않아요' 멘트를 띄우기까지 기다리는 시간(초). " +
              "잠깐 손 떼는 것엔 반응하지 않도록 약간의 유예를 둔다.")]
     [SerializeField, Min(0f)] private float idleThreshold = 2f;
+
+    [Tooltip("대상 구역을 잘 닦고 있는 동안 '잘하고 있어요!'를 다시 띄우는 간격(초). " +
+             "정체된 안내 멘트를 주기적으로 갱신해 대화가 살아있게 한다.")]
+    [SerializeField, Min(0.5f)] private float keepGoingInterval = 5f;
 
     [Tooltip("켜면 발행되는 대사를 콘솔에도 찍는다 — 대사창 UI 구현 전 검증용.")]
     [SerializeField] private bool logEvents = true;
@@ -63,6 +70,13 @@ public class DialogueDirector : MonoBehaviour
 
     // 이번 idle 구간에서 이미 멘트를 띄웠는지 — 멈춰 있는 동안 반복 발화를 막는다.
     private bool idleSpoken;
+
+    // 직전 Progress에서 사용자가 실제로 닦고 있던 구역(없으면 null) — 새 단계 진입 시
+    // "이미 그 구역을 닦고 있는지" 판단에 사용.
+    private UiZone? lastBrushingZone;
+
+    // 마지막으로 "잘하고 있어요!"를 띄운 시각 — keepGoingInterval throttle용.
+    private float lastKeepGoingTime = -999f;
 
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
@@ -88,14 +102,23 @@ public class DialogueDirector : MonoBehaviour
     // 루틴 이벤트 핸들러 → 대사 선택
     // ─────────────────────────────────────────────────────────────
 
-    /// <summary>새 단계 시작 → "이제 OO를 닦아볼까요?" 안내.</summary>
+    /// <summary>
+    /// 새 단계 시작 → 보통은 "이제 OO를 닦아볼까요?" 안내.
+    /// 단, 이미 그 구역을 닦고 있으면(직전 Progress 기준) "잘하고 있어요! 이대로 계속 하세요"로 칭찬.
+    /// </summary>
     private void OnStepStarted(RoutineStepStartedEvent e)
     {
         wasOnTarget = true;       // 새 단계 진입 직후엔 교정 멘트를 바로 띄우지 않는다.
         lastCorrectTime = Time.time;
+        lastKeepGoingTime = Time.time;  // 안내 직후 곧바로 "잘하고 있어요"가 겹치지 않게.
         idleElapsed = 0f;         // 새 단계 안내가 곧 나오므로 idle 카운터도 리셋.
         idleSpoken = false;
-        Speak(guideTemplate, e.targetZone, DialogueKind.Guide);
+
+        // 이미 이번 단계의 목표 구역을 닦고 있으면 안내 대신 칭찬.
+        if (lastBrushingZone.HasValue && lastBrushingZone.Value == e.targetZone)
+            Speak(alreadyOnTargetTemplate, e.targetZone, DialogueKind.Praise);
+        else
+            Speak(guideTemplate, e.targetZone, DialogueKind.Guide);
     }
 
     /// <summary>
@@ -105,6 +128,9 @@ public class DialogueDirector : MonoBehaviour
     private void OnProgress(RoutineProgressEvent e)
     {
         bool isBrushing = e.currentBrushingZone.HasValue;
+
+        // 다음 단계 진입 시 "이미 닦고 있는지" 판단에 쓰도록 현재 닦는 구역을 기억.
+        lastBrushingZone = e.currentBrushingZone;
 
         if (!isBrushing)
         {
@@ -124,13 +150,25 @@ public class DialogueDirector : MonoBehaviour
         idleElapsed = 0f;
         idleSpoken = false;
 
-        // 대상을 닦다가(또는 대기) → 다른 구역을 닦기 시작한 순간에만 교정 멘트.
-        bool startedWrongZone = !e.isOnTarget && e.currentBrushingZone.Value != e.targetZone;
-
-        if (startedWrongZone && wasOnTarget && Time.time - lastCorrectTime >= correctCooldown)
+        if (e.isOnTarget)
         {
-            lastCorrectTime = Time.time;
-            Speak(correctTemplate, e.targetZone, DialogueKind.Correct);
+            // 대상 구역을 잘 닦고 있는 중 — keepGoingInterval마다 "잘하고 있어요!"로 멘트를 갱신.
+            // (단계 시작 안내가 정체되거나 검출이 흔들려도 대화가 살아있게.)
+            if (Time.time - lastKeepGoingTime >= keepGoingInterval)
+            {
+                lastKeepGoingTime = Time.time;
+                Speak(alreadyOnTargetTemplate, e.targetZone, DialogueKind.Praise);
+            }
+        }
+        else
+        {
+            // 대상을 닦다가(또는 대기) → 다른 구역을 닦기 시작한 순간에만 교정 멘트.
+            bool startedWrongZone = e.currentBrushingZone.Value != e.targetZone;
+            if (startedWrongZone && wasOnTarget && Time.time - lastCorrectTime >= correctCooldown)
+            {
+                lastCorrectTime = Time.time;
+                Speak(correctTemplate, e.targetZone, DialogueKind.Correct);
+            }
         }
 
         wasOnTarget = e.isOnTarget;
