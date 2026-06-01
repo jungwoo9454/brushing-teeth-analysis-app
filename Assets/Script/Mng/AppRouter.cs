@@ -47,13 +47,35 @@ public class AppRouter : Singleton<AppRouter>
     // 현재 메인 씬에 떠 있는 UI 인스턴스(중복 생성 방지 + 교체용).
     private GameObject currentScreenInstance;
 
+    // 가장 최근 양치 결과(점수/구역/연속일수). 결과 화면 생성 시 주입한다.
+    private BrushingScoredEvent lastResult;
+    private bool hasResult;
+
+    /// <summary>가장 최근 양치 결과가 캐시돼 있는지.</summary>
+    public bool HasResult => hasResult;
+
+    /// <summary>가장 최근 양치 결과 — BrushingFinish/Report 화면이 사용.</summary>
+    public BrushingScoredEvent LastResult => lastResult;
+
     // ─────────────────────────────────────────────────────────────
     // 생명주기
     // ─────────────────────────────────────────────────────────────
 
     protected override void Awake()
     {
-        base.Awake();   // Singleton의 DontDestroyOnLoad 등록.
+        // AppRouter는 Main 씬에 배치돼 있고 DontDestroyOnLoad로 영속한다. 그래서 Brushing→Main 재로드 시
+        // 씬에 배치된 사본이 다시 생성되어 '중복'이 된다. Singleton<T> 베이스는 중복을 파괴하지 않으므로
+        // 여기서 직접 처리한다: 이미 살아있는 인스턴스가 있으면 이 사본은 즉시 비활성화(=Start/OnEnable이
+        // 메뉴를 띄우지 않게)하고 파괴한다. 비활성화 후엔 OnEnable/Start가 호출되지 않는다.
+        if (Instance != null && Instance != this)
+        {
+            gameObject.SetActive(false);
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;   // 이후 중복 사본이 곧바로 위 분기로 걸러지도록 즉시 등록.
+        base.Awake();      // Singleton의 DontDestroyOnLoad 등록.
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
@@ -61,11 +83,14 @@ public class AppRouter : Singleton<AppRouter>
     {
         // 양치 종료 → 메인 씬으로 돌아가 결과 화면 표시.
         EventBus.Subscribe<BrushingSessionCompletedEvent>(OnBrushingCompleted);
+        // 점수 산출 결과 → 결과 화면에 주입할 수 있도록 캐시.
+        EventBus.Subscribe<BrushingScoredEvent>(OnScored);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<BrushingSessionCompletedEvent>(OnBrushingCompleted);
+        EventBus.Unsubscribe<BrushingScoredEvent>(OnScored);
     }
 
     private void Start()
@@ -127,6 +152,15 @@ public class AppRouter : Singleton<AppRouter>
         GoMainWith(Screen.BrushingFinish);
     }
 
+    // 점수 산출 결과를 캐시 — 결과 화면(ShowScreen)에서 BrushingFinishView로 주입한다.
+    // 발행 순서상 이 핸들러는 OnBrushingCompleted가 예약한 씬 로드(프레임 끝)보다 먼저 실행되므로
+    // 결과 화면이 만들어질 때 lastResult는 이미 채워져 있다.
+    private void OnScored(BrushingScoredEvent e)
+    {
+        lastResult = e;
+        hasResult = true;
+    }
+
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
     {
         // 메인 씬으로 들어올 때만 화면을 띄운다(Brushing 씬은 자체 UI 사용).
@@ -166,6 +200,13 @@ public class AppRouter : Singleton<AppRouter>
 
         currentScreenInstance = Instantiate(prefab);
         currentScreenInstance.SetActive(true);
+
+        // 결과 화면이면 가장 최근 점수 결과를 주입한다.
+        if (screen == Screen.BrushingFinish && hasResult)
+        {
+            var view = currentScreenInstance.GetComponentInChildren<BrushingFinishView>(true);
+            if (view != null) view.Bind(lastResult);
+        }
     }
 
     private GameObject PrefabFor(Screen screen)

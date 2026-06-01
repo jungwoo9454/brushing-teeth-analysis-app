@@ -20,6 +20,12 @@ public class BrushingRecord
     /// <summary>양치를 진행한 시각 — Unix epoch 초. 정렬/쿼리/DB 인덱싱용.</summary>
     public long recordedAtUnix;
 
+    /// <summary>
+    /// 양치 시간대 — "아침"(06~10) / "점심"(10~16) / "저녁"(16~익일 02). 저장 시각(로컬) 기준.
+    /// 분류 기준은 <see cref="BrushingTimeSlot"/> 단일 출처.
+    /// </summary>
+    public string timeSlot;
+
     /// <summary>최종 점수 (0~100).</summary>
     public int score;
 

@@ -1146,7 +1146,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b594dd8ca44b094787246c15ed47d0c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BrushingStatusView
-  showOverlay: 1
+  showOverlay: 0
   font: {fileID: 12800000, guid: fd58d0d7e65ee4f22bd276906019c7c2, type: 3}
   fontSize: 36
   screenMargin: {x: 24, y: 24}
@@ -2174,6 +2174,74 @@ Material:
     - _UnderlayColor: {r: 0, g: 0, b: 0, a: 0.5}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
+--- !u!1 &1232801137
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1232801140}
+  - component: {fileID: 1232801139}
+  - component: {fileID: 1232801138}
+  m_Layer: 0
+  m_Name: EventSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1232801138
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232801137}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f231c4fb786f3946a6b90b886c48677, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.StandaloneInputModule
+  m_SendPointerHoverToParent: 1
+  m_HorizontalAxis: Horizontal
+  m_VerticalAxis: Vertical
+  m_SubmitButton: Submit
+  m_CancelButton: Cancel
+  m_InputActionsPerSecond: 10
+  m_RepeatDelay: 0.5
+  m_ForceModuleActive: 0
+--- !u!114 &1232801139
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232801137}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
+  m_FirstSelected: {fileID: 0}
+  m_sendNavigationEvents: 1
+  m_DragThreshold: 10
+--- !u!4 &1232801140
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232801137}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1349695898
 GameObject:
   m_ObjectHideFlags: 0
@@ -3156,13 +3224,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eaa76bccfc5e042f1928868057c97c63, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BrushingSession
-  targetTotalSeconds: 180
-  targetPerZoneSeconds: 36
+  targetTotalSeconds: 30
+  targetPerZoneSeconds: 6
   autoStartOnEnable: 1
   autoEndOnTargetReached: 1
-  autoEndAfterSeconds: 180
+  autoEndAfterSeconds: 30
   tickInterval: 0.1
   logSessionEvents: 0
+  debugAllowSkip: 1
+  debugSkipKey: 13
 --- !u!114 &1809714102
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3575,8 +3645,18 @@ MonoBehaviour:
   lightColor: {r: 1, g: 1, b: 1, a: 1}
   lightIntensity: 1.1
   lightEulerAngles: {x: 40, y: 160, z: 0}
-  startState: Hello
   idleState: EmoTalk1
+  idleVariations:
+  - Laught
+  - ThumbsUp
+  - Win
+  - Hello
+  idleVariationMinInterval: 5
+  idleVariationMaxInterval: 10
+  idleVariationHold: 2.5
+  crossFadeSeconds: 0.2
+  logEvents: 0
+  startState: Hello
   goodStates:
   - ThumbsUp
   - Laught
@@ -3587,19 +3667,9 @@ MonoBehaviour:
   - Emo Angry
   finishSuccessState: Win
   finishIncompleteState: DontKnow
-  idleVariations:
-  - Laught
-  - ThumbsUp
-  - Win
-  - Hello
-  idleVariationMinInterval: 5
-  idleVariationMaxInterval: 10
-  idleVariationHold: 2.5
   moodCooldown: 3
   startHold: 2.5
   moodHold: 3
-  crossFadeSeconds: 0.2
-  logEvents: 0
 --- !u!1 &1826715975
 GameObject:
   m_ObjectHideFlags: 0
@@ -4089,3 +4159,4 @@ SceneRoots:
   - {fileID: 1809714099}
   - {fileID: 800026911}
   - {fileID: 667322546}
+  - {fileID: 1232801140}

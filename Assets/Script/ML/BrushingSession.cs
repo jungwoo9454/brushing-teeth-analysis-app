@@ -44,6 +44,13 @@ public class BrushingSession : MonoBehaviour
     [Tooltip("true면 세션 시작/종료/Tick을 콘솔에 찍는다. 검증 후 false.")]
     [SerializeField] private bool logSessionEvents = false;
 
+    [Header("디버그 (임시)")]
+    [Tooltip("켜면 디버그 스킵 키로 진행 중인 세션을 즉시 종료할 수 있다.")]
+    [SerializeField] private bool debugAllowSkip = true;
+
+    [Tooltip("이 키를 누르면 세션을 즉시 종료한다(현재까지 누적으로 Completed 발행). 디버그용.")]
+    [SerializeField] private KeyCode debugSkipKey = KeyCode.Return;
+
     // ─────────────────────────────────────────────────────────────
     // 내부 상태
     // ─────────────────────────────────────────────────────────────
@@ -100,6 +107,14 @@ public class BrushingSession : MonoBehaviour
     private void Update()
     {
         if (!isSessionActive) return;
+
+        // 디버그 — 지정 키를 누르면 목표와 무관하게 즉시 종료(현재까지 누적으로 Completed 발행). 임시/디버그용.
+        if (debugAllowSkip && Input.GetKeyDown(debugSkipKey))
+        {
+            if (logSessionEvents) Debug.Log("[Session] 디버그 스킵 — 즉시 종료");
+            EndSession();
+            return;
+        }
 
         float dt = Time.deltaTime;
 
