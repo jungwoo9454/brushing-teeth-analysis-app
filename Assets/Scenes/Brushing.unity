@@ -477,9 +477,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 234819478}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 659.9293, y: -90}
   m_SizeDelta: {x: 239.8586, y: 173.2312}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &62546526
@@ -2537,7 +2537,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &234819478
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5960,9 +5960,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 234819478}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 180.2121, y: -90}
   m_SizeDelta: {x: 239.8586, y: 173.2312}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &852597105
@@ -6775,7 +6775,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.8509804}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -10905,9 +10905,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 234819478}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 899.7879, y: -90}
   m_SizeDelta: {x: 239.8586, y: 173.2312}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1532795315
@@ -13460,6 +13460,8 @@ MonoBehaviour:
   correctTemplate: "{zone}\uB97C \uB2E6\uC544\uC8FC\uC138\uC694!"
   encourageTemplate: "{zone}\uB97C \uC870\uAE08 \uB354 \uB2E6\uC544\uC8FC\uC138\uC694"
   stepPraiseTemplate: "{zone} \uAE68\uB057\uD574\uC84C\uC5B4\uC694!"
+  alreadyOnTargetTemplate: "\uC798\uD558\uACE0 \uC788\uC5B4\uC694! \uC774\uB300\uB85C
+    \uACC4\uC18D \uD558\uC138\uC694"
   finishSuccessText: "\uC591\uCE58 \uC644\uC131! \uC815\uB9D0 \uC798\uD588\uC5B4\uC694!"
   finishIncompleteText: "\uB2E4 \uD588\uC5B4\uC694! \uB2E4\uC74C\uC5D4 \uAD6C\uC11D\uAD6C\uC11D
     \uB354 \uB2E6\uC544\uBD10\uC694"
@@ -13467,6 +13469,7 @@ MonoBehaviour:
     {zone}\uB97C \uB2E6\uC544\uC8FC\uC138\uC694"
   correctCooldown: 4
   idleThreshold: 2
+  keepGoingInterval: 5
   logEvents: 1
 --- !u!114 &1809714103
 MonoBehaviour:
@@ -13623,16 +13626,18 @@ MonoBehaviour:
   popupObject: {fileID: 978563535}
   hintImage: {fileID: 978563537}
   zoneSprites:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: -1846739559, guid: 10c65fabaa1092f48a76de38b06232ea, type: 3}
+  - {fileID: -642314221, guid: 10c65fabaa1092f48a76de38b06232ea, type: 3}
+  - {fileID: -1292791432, guid: 10c65fabaa1092f48a76de38b06232ea, type: 3}
+  - {fileID: -2034607409, guid: 10c65fabaa1092f48a76de38b06232ea, type: 3}
+  - {fileID: 1147060258, guid: 10c65fabaa1092f48a76de38b06232ea, type: 3}
   triggerKind: 1
+  swapLeftRight: 0
   startScale: 0
   popDuration: 0.4
   popEase: 27
-  autoHideSeconds: 0
+  autoHideSeconds: 3
+  hideDuration: 0.25
 --- !u!1 &1811636054
 GameObject:
   m_ObjectHideFlags: 0
@@ -13666,9 +13671,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 234819478}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 420.0707, y: -90}
   m_SizeDelta: {x: 239.8586, y: 173.2312}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1811636056
@@ -13764,6 +13769,7 @@ GameObject:
   - component: {fileID: 1823986174}
   - component: {fileID: 1823986176}
   - component: {fileID: 1823986175}
+  - component: {fileID: 1823986177}
   m_Layer: 0
   m_Name: Chracter
   m_TagString: Untagged
@@ -13803,7 +13809,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
   m_Material: {fileID: 0}
-  m_Color: {r: 0.7735849, g: 0.7735849, b: 0.7735849, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -13825,6 +13831,56 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1823986173}
   m_CullTransparentMesh: 1
+--- !u!114 &1823986177
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1823986173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fb34f05e45aba5409262bdd5ec0d69d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterStagePresenter
+  targetImage: {fileID: 1823986175}
+  characterPrefab: {fileID: 2758169117693266568, guid: db91c2083f8291b4883c000f84cfcec8, type: 3}
+  characterLocalPosition: {x: 0, y: 0, z: 0}
+  characterEulerAngles: {x: 0, y: 180, z: 0}
+  characterScale: 0.85
+  cameraLocalPosition: {x: 0, y: 1, z: -3.2}
+  cameraPitch: 5
+  cameraFov: 30
+  renderTextureSize: 512
+  transparentBackground: 1
+  lightColor: {r: 1, g: 1, b: 1, a: 1}
+  lightIntensity: 1.1
+  lightEulerAngles: {x: 40, y: 160, z: 0}
+  startState: Hello
+  idleState: EmoTalk1
+  goodStates:
+  - ThumbsUp
+  - Laught
+  - Win
+  badStates:
+  - No
+  - Cry
+  - Emo Angry
+  finishSuccessState: Win
+  finishIncompleteState: DontKnow
+  idleVariations:
+  - Laught
+  - ThumbsUp
+  - Win
+  - Hello
+  idleVariationMinInterval: 5
+  idleVariationMaxInterval: 10
+  idleVariationHold: 2.5
+  moodCooldown: 3
+  startHold: 2.5
+  moodHold: 3
+  crossFadeSeconds: 0.2
+  logEvents: 0
 --- !u!1 &1826715975
 GameObject:
   m_ObjectHideFlags: 0

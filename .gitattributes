@@ -21,3 +21,8 @@ Assets/Font/TMP/*.asset filter=lfs diff=lfs merge=lfs -text
 
 # MediaPipe Tasks 모델 파일 (face_landmarker.task 등)
 *.task filter=lfs diff=lfs merge=lfs -text
+
+# 3D 캐릭터 에셋 — FBX 메시/애니메이션, 베이크 라이트맵(EXR) 등 대용량 바이너리.
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
