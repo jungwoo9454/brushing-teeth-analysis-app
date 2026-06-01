@@ -10,6 +10,12 @@ public struct CharacterDialogueEvent
 
     /// <summary>대사의 성격 — UI가 말풍선 색/캐릭터 표정을 분기하는 데 쓸 수 있다.</summary>
     public DialogueKind kind;
+
+    /// <summary>이 대사가 가리키는 구역 (hasZone=true일 때만 유효). 구역 힌트 이미지 등에 사용.</summary>
+    public UiZone zone;
+
+    /// <summary>zone 필드가 유효한지. 구역과 무관한 멘트(완료/칭찬 등)는 false.</summary>
+    public bool hasZone;
 }
 
 /// <summary>대사 성격 분류.</summary>

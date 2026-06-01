@@ -99,7 +99,7 @@ public class UnderBrushedAdvisor : MonoBehaviour
         if (logEvents)
             Debug.Log($"[UnderBrushed] {text} (min={minVal:F1}s, max={maxVal:F1}s, zone={deficitZone})");
 
-        EventBus.Publish(new CharacterDialogueEvent { text = text, kind = DialogueKind.Encourage });
+        EventBus.Publish(new CharacterDialogueEvent { text = text, kind = DialogueKind.Encourage, zone = deficitZone, hasZone = true });
     }
 
     /// <summary>현재 닦는 ML 구역(currentZone)이 target UI 구역을 포함하는지.</summary>

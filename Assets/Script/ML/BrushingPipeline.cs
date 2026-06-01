@@ -29,6 +29,10 @@ public class BrushingPipeline : MonoBehaviour
     [Tooltip("전면(셀카) 카메라는 보통 좌우 반전되어 들어옴 — 학습 분포와 맞추려면 unmirror 필수.")]
     [SerializeField] private bool unmirrorFrontCamera = true;
 
+    [Tooltip("켜면 전면(셀카) 카메라를 우선 선택한다. 모바일(Android/iOS)에서 기본이 후면으로 잡히는 것을 방지. " +
+             "webcamDeviceName이 지정되면 그 값이 우선한다.")]
+    [SerializeField] private bool preferFrontCamera = true;
+
     [Header("ML Components — 같은 GameObject에 부착 권장")]
     [SerializeField] private ToothbrushDetector detector;
     [SerializeField] private ZoneMlpClassifier classifier;
@@ -321,16 +325,43 @@ public class BrushingPipeline : MonoBehaviour
     /// <summary>WebCamTexture 생성·Play. 디바이스가 없으면 에러 로그.</summary>
     private void StartCamera()
     {
-        if (WebCamTexture.devices.Length == 0)
+        var devices = WebCamTexture.devices;
+        if (devices.Length == 0)
         {
             Debug.LogError("[BrushingPipeline] 카메라 장치를 찾을 수 없다.");
             return;
         }
 
-        // 디바이스명이 비어있으면 첫 번째 카메라 자동 선택, 지정됐으면 해당 디바이스 강제 사용.
-        webcam = string.IsNullOrEmpty(webcamDeviceName)
+        // 사용할 디바이스 결정 (전면 우선). 빈 문자열이면 기본(첫 번째) 카메라.
+        string deviceName = ResolveCameraDeviceName(devices);
+
+        webcam = string.IsNullOrEmpty(deviceName)
             ? new WebCamTexture(requestedWidth, requestedHeight, requestedFps)
-            : new WebCamTexture(webcamDeviceName, requestedWidth, requestedHeight, requestedFps);
+            : new WebCamTexture(deviceName, requestedWidth, requestedHeight, requestedFps);
         webcam.Play();
+    }
+
+    /// <summary>
+    /// 사용할 카메라 디바이스명을 결정한다.
+    ///   1) webcamDeviceName이 지정돼 있으면 그대로 사용(명시 override).
+    ///   2) preferFrontCamera면 isFrontFacing 디바이스를 우선 선택 — Android/iOS에서 전면 보장.
+    ///   3) 전면을 못 찾으면 빈 문자열(null) 반환 → 기본(첫 번째) 카메라로 폴백.
+    /// </summary>
+    private string ResolveCameraDeviceName(WebCamDevice[] devices)
+    {
+        if (!string.IsNullOrEmpty(webcamDeviceName))
+            return webcamDeviceName;
+
+        if (preferFrontCamera)
+        {
+            for (int i = 0; i < devices.Length; i++)
+            {
+                if (devices[i].isFrontFacing)
+                    return devices[i].name;
+            }
+            Debug.LogWarning("[BrushingPipeline] 전면 카메라를 찾지 못해 기본 카메라로 폴백한다.");
+        }
+
+        return null;   // 기본(첫 번째) 카메라
     }
 }
