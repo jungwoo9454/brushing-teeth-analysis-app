@@ -160,7 +160,8 @@ public class DialogueDirector : MonoBehaviour
     private void Speak(string template, UiZone zone, DialogueKind kind)
     {
         string text = template.Replace("{zone}", ZoneLabels.Korean(zone));
-        Publish(text, kind);
+        if (logEvents) Debug.Log($"[Dialogue/{kind}] {text}");
+        EventBus.Publish(new CharacterDialogueEvent { text = text, kind = kind, zone = zone, hasZone = true });
     }
 
     /// <summary>최종 문자열을 CharacterDialogueEvent로 발행.</summary>
