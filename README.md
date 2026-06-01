@@ -109,3 +109,62 @@ git lfs install && git lfs pull
 
 - 기획서: `Assets/Document/세살버릇_앱_기획서(초안).pdf`
 - AI 통합 가이드: `Assets/Model/HANDOFF_TO_APP.md`
+
+## 양치 점수 산출 알고리즘
+
+양치 세션이 끝나면 `BrushingScorer`(`Assets/Script/Brushing/BrushingScore.cs`)가 결과를
+**0~100점**으로 환산한다. 점수는 아래 세 평가 축을 0~1로 구한 뒤 가중 합산해 계산한다.
+
+| 평가 축 | 가중치 | 설명 |
+| --- | --- | --- |
+| 구역 충족도 (coverage) | 60% | 5개 구역 각각이 목표 시간에 얼마나 도달했는지의 평균 |
+| 구역 균등도 (evenness) | 20% | 가장 적게 닦은 구역 / 가장 많이 닦은 구역 |
+| 지속성 (continuity) | 20% | 가장 길게 "쉰" 연속 시간이 짧을수록 높음 |
+
+### 입력값
+- `zoneSeconds[5]` — 5개 UI 구역별 누적 양치 시간(초). 인덱스 = `UiZone`
+  (0=왼쪽 윗니, 1=오른쪽 윗니, 2=왼쪽 아랫니, 3=오른쪽 아랫니, 4=앞니).
+  옆면(Side) 검출은 위·아래 두 구역에 동시 가산된다.
+- `perZoneTarget` — 구역당 목표 시간(초). 기본 = 세션 길이 / 5 = **180 / 5 = 36초**.
+- `longestIdle` — 세션 중 가장 길게 연속으로 양치를 쉰 시간(초).
+
+### 계산식
+
+**1) 구역 충족도 (coverage)**
+```
+coverage_i = clamp01(zoneSeconds[i] / perZoneTarget)   // 구역별 목표 도달률(0~1)
+coverage   = average(coverage_i)                        // 5구역 평균
+```
+안 닦은 구역은 0이 되므로, 한쪽만 닦으면 점수가 낮아진다(균등성도 함께 반영).
+
+**2) 구역 균등도 (evenness)**
+```
+evenness = (max > 0) ? min(zoneSeconds) / max(zoneSeconds) : 0
+```
+한 구역이라도 0이면 0, 모든 구역을 똑같이 닦으면 1.
+
+**3) 지속성 (continuity)**
+```
+continuity = clamp01(1 - longestIdle / 60)
+```
+60초 이상 연속으로 쉬면 0점 → "3분 동안 쉬지 않고 닦았는지"를 평가한다.
+
+**최종 점수**
+```
+score = round( (0.6 · coverage + 0.2 · evenness + 0.2 · continuity) × 100 )
+```
+
+### 기준점
+- **100점** — 3분 내내 5개 구역을 고르게(각 36초) 닦았을 때.
+- **0점** — 3분 동안 전혀 닦지 않았을 때(모든 항목 0).
+
+### 튜닝 포인트
+- 가중치(`WeightCoverage` / `WeightEvenness` / `WeightContinuity`)와 지속성 패널티 기준
+  (`IdleFullPenaltySeconds = 60`)은 `BrushingScore.cs` 상단 상수에서 조정.
+- 세션 길이·구역 목표 시간은 `BrushingSession`의 `autoEndAfterSeconds`(기본 180초),
+  `targetTotalSeconds` / `targetPerZoneSeconds`(기본 180 / 36)로 조정.
+
+### 결과 저장
+산출된 점수는 `BrushingRecordWriter`가 `BrushingRecord`로 만들어
+`Application.persistentDataPath/brushing_records.json`에 누적 저장한다(진행 시각·최종 점수·구역별 시간 포함).
+저장소는 `IBrushingRecordRepository`로 추상화되어 있어 추후 DB로 교체할 수 있다.
