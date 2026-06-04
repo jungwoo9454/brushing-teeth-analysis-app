@@ -17,6 +17,12 @@ public static class MediaPipeFacePort
     private const int REQUIRED_LANDMARK_COUNT = 478;
 
     /// <summary>
+    /// solvePnP 결과의 점당 RMS 재투영 오차가 이 픽셀값을 넘으면 발산/오수렴으로 보고
+    /// pitch/yaw를 0(정면)으로 폴백한다. 정상 수렴은 보통 10px 안쪽.
+    /// </summary>
+    private const float MAX_REPROJ_ERROR = 50f;
+
+    /// <summary>
     /// 한 프레임의 MediaPipe 결과를 MouthInfo로 변환.
     /// </summary>
     /// <param name="landmarks">478개 정규화 landmark. x, y ∈ [0, 1].</param>
@@ -25,7 +31,7 @@ public static class MediaPipeFacePort
     /// <param name="faceTransform">FaceLandmarker의 4x4 transformation matrix. 없으면 null.</param>
     /// <returns>isValid=false면 다른 필드 무시.</returns>
     public static MouthInfo Build(
-        Vector3[] landmarks, int imageW, int imageH, Matrix4x4? faceTransform = null)
+        Vector3[] landmarks, int imageW, int imageH)
     {
         var info = new MouthInfo { isValid = false };
 
@@ -45,10 +51,8 @@ public static class MediaPipeFacePort
         // 너무 좁은 입은 정규화 분모로 쓸 수 없으니 invalid로 처리.
         if (mh < MlConstants.MIN_MOUTH_HEIGHT) return info;
 
-        // 4) pitch / yaw — transform이 주어졌을 때만 추출. 없으면 0 폴백.
-        float pitch = 0f, yaw = 0f;
-        if (faceTransform.HasValue)
-            ExtractPitchYaw(faceTransform.Value, out pitch, out yaw);
+        // 4) pitch / yaw — solvePnP로 추정 (face_mesh.py _estimate_head_pose와 동일).
+        EstimateHeadPose(landmarks, imageW, imageH, out float pitch, out float yaw);
 
         info.isValid = true;
         info.polygon = polygon;
@@ -138,29 +142,50 @@ public static class MediaPipeFacePort
     }
 
     /// <summary>
-    /// 4x4 transformation matrix의 회전 부분(3x3)에서 pitch/yaw 추출.
-    /// AI 파트 공식 그대로:
-    ///   sy    = sqrt(R[0,0]^2 + R[1,0]^2)
-    ///   pitch = atan2(-R[2, 0], sy)
-    ///   yaw   = atan2( R[1, 0], R[0, 0])
+    /// solvePnP로 head pitch/yaw(라디안)를 추정한다 — 파이썬 데모 face_mesh.py의
+    /// _estimate_head_pose와 동일한 방식. POSE_LANDMARK_IDS 6점을 POSE_MODEL_POINTS_3D에
+    /// 맞춰 PnP를 풀고, object→camera 회전행렬에서 오일러각을 뽑는다.
+    /// focal=이미지 너비, 주점=이미지 중심 (face_mesh.py와 동일한 카메라 가정).
+    ///
+    /// MLP의 feature[9](pitch)는 이 solvePnP 값으로 학습됐으므로, 추론도 동일 방식으로
+    /// 맞춰야 입력 분포가 일치한다. (이전엔 MediaPipe facialTransformationMatrix를 썼다.)
     /// </summary>
-    /// <remarks>
-    /// 주의: MediaPipe의 좌표계 규약과 Unity Matrix4x4 인덱싱 규약이 미묘하게 다를 수 있다.
-    /// AI 파트도 "정면→살짝 숙임 테스트로 부호 검증 후 필요 시 반전"을 명시 — 검증 단계에서
-    /// pitch 부호가 반대로 보이면 호출부 또는 여기서 `-pitch`로 뒤집을 것.
-    /// </remarks>
-    private static void ExtractPitchYaw(Matrix4x4 m, out float pitch, out float yaw)
+    private static void EstimateHeadPose(Vector3[] L, int W, int H, out float pitch, out float yaw)
     {
-        // Unity Matrix4x4는 m[row, col] 인덱싱을 지원 — 내부 저장은 column-major이지만 인덱서가 추상화.
-        float r00 = m[0, 0];
-        float r10 = m[1, 0];
-        float r20 = m[2, 0];
+        pitch = 0f;
+        yaw = 0f;
 
-        // sy: x축 회전 행의 cos pitch 성분의 크기 — gimbal lock 회피용.
-        float sy = Mathf.Sqrt(r00 * r00 + r10 * r10);
+        // POSE_LANDMARK_IDS 6점의 픽셀 좌표를 모은다. landmark가 부족하면 0 폴백.
+        var ids = MlConstants.POSE_LANDMARK_IDS;
+        var imagePts = new Vector2[ids.Length];
+        for (int i = 0; i < ids.Length; i++)
+        {
+            if (ids[i] >= L.Length) return;
+            imagePts[i] = new Vector2(L[ids[i]].x * W, L[ids[i]].y * H);
+        }
 
-        // 학습 코드와 동일한 부호/순서.
-        pitch = Mathf.Atan2(-r20, sy);
-        yaw   = Mathf.Atan2(r10, r00);
+        // face_mesh.py와 동일: focal=이미지 너비, 주점=이미지 중심.
+        var R = new float[9];
+        if (!SolvePnP.TryEstimate(
+                MlConstants.POSE_MODEL_POINTS_3D, imagePts, W, W * 0.5f, H * 0.5f, R,
+                out float reprojErr))
+            return;
+
+        // object→camera 회전행렬(행 우선) → 오일러각. face_mesh.py와 동일한 식:
+        //   sy = sqrt(R00² + R10²),  pitch = atan2(-R20, sy),  yaw = atan2(R10, R00).
+        float sy = Mathf.Sqrt(R[0] * R[0] + R[3] * R[3]);
+        float rawPitch = Mathf.Atan2(-R[6], sy);
+        float rawYaw = (sy > 1e-6f) ? Mathf.Atan2(R[3], R[0]) : 0f;
+
+        // [임시 검증] reprojErr 분포 확인용 — 검증 후 이 로그는 제거.
+        Debug.Log($"[Pitch] reprojErr={reprojErr:F1}px pitch={rawPitch * Mathf.Rad2Deg:F1}deg " +
+                  $"yaw={rawYaw * Mathf.Rad2Deg:F1}deg");
+
+        // 재투영 오차가 크면 solvePnP가 발산/오수렴한 것 — pitch/yaw를 0(정면)으로 폴백.
+        if (reprojErr > MAX_REPROJ_ERROR)
+            return;
+
+        pitch = rawPitch;
+        yaw = rawYaw;
     }
 }

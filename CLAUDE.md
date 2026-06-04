@@ -10,7 +10,7 @@ app gives AR feedback (virtual bacteria disappearing). Built in Unity 6 with the
 
 ## Environment
 
-- **Unity 6000.4.7f1** — open the project in this exact editor version (`ProjectSettings/ProjectVersion.txt`).
+- **Unity 6000.4.9f1** — open the project in this exact editor version (`ProjectSettings/ProjectVersion.txt`).
 - There are no command-line build/lint/test scripts. Builds, play mode, and the Unity Test
   Runner (`com.unity.test-framework`) are driven from the Unity Editor.
 - Editor automation (creating/editing GameObjects, scripts, scenes, running tests) goes

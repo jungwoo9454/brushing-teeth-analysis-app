@@ -22,11 +22,11 @@ public class BrushingSession : MonoBehaviour
     // ─────────────────────────────────────────────────────────────
 
     [Header("Targets")]
-    [Tooltip("권장 전체 양치 시간 (초). 일반 가이드 = 2분 = 120초.")]
-    [SerializeField] private float targetTotalSeconds = 120f;
+    [Tooltip("권장 전체 양치 시간 (초). 일반 가이드 = 3분 = 180초.")]
+    [SerializeField] private float targetTotalSeconds = 180f;
 
-    [Tooltip("zone당 권장 시간 (초). 5-zone 균등이면 targetTotalSeconds / 5 = 24초.")]
-    [SerializeField] private float targetPerZoneSeconds = 24f;
+    [Tooltip("zone당 권장 시간 (초). 5-zone 균등이면 targetTotalSeconds / 5 = 36초.")]
+    [SerializeField] private float targetPerZoneSeconds = 36f;
 
     [Header("Behavior")]
     [Tooltip("씬 활성화(OnEnable) 시 자동으로 세션 시작. false면 외부에서 StartSession() 호출 필요.")]
@@ -35,11 +35,21 @@ public class BrushingSession : MonoBehaviour
     [Tooltip("모든 zone이 zone별 목표에 도달하고 전체 시간도 목표 이상이면 자동 종료. false면 외부 EndSession() 호출 필요.")]
     [SerializeField] private bool autoEndOnTargetReached = true;
 
+    [Tooltip("세션 시작 후 이 시간(초, 벽시계 기준)이 지나면 무조건 자동 종료. 3분 = 180초. 0이면 시간 기반 자동 종료 안 함.")]
+    [SerializeField] private float autoEndAfterSeconds = 180f;
+
     [Tooltip("Tick 이벤트 발행 주기 (초). 작을수록 UI 부드러움, 크면 GC 절약. 0.1초 권장.")]
     [SerializeField, Range(0f, 1f)] private float tickInterval = 0.1f;
 
     [Tooltip("true면 세션 시작/종료/Tick을 콘솔에 찍는다. 검증 후 false.")]
     [SerializeField] private bool logSessionEvents = false;
+
+    [Header("디버그 (임시)")]
+    [Tooltip("켜면 디버그 스킵 키로 진행 중인 세션을 즉시 종료할 수 있다.")]
+    [SerializeField] private bool debugAllowSkip = true;
+
+    [Tooltip("이 키를 누르면 세션을 즉시 종료한다(현재까지 누적으로 Completed 발행). 디버그용.")]
+    [SerializeField] private KeyCode debugSkipKey = KeyCode.Return;
 
     // ─────────────────────────────────────────────────────────────
     // 내부 상태
@@ -67,6 +77,13 @@ public class BrushingSession : MonoBehaviour
     // 가장 최근 ZoneDetectedEvent의 engaged 플래그.
     private bool latestEngaged;
 
+    // 세션 시작 시각(Time.time) — 벽시계 기준 자동 종료(3분) 판정용.
+    private float sessionStartTime;
+
+    // 현재 연속으로 양치를 쉰 시간(초) / 세션 중 가장 길었던 연속 쉼(초). 점수 '지속성' 평가용.
+    private float currentIdleRun;
+    private float longestIdleRun;
+
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
     // ─────────────────────────────────────────────────────────────
@@ -91,11 +108,22 @@ public class BrushingSession : MonoBehaviour
     {
         if (!isSessionActive) return;
 
-        // engaged + stableZone != None 일 때만 시간 가산 — engagement 게이트는 이미 BrushingPipeline에서 적용.
+        // 디버그 — 지정 키를 누르면 목표와 무관하게 즉시 종료(현재까지 누적으로 Completed 발행). 임시/디버그용.
+        if (debugAllowSkip && Input.GetKeyDown(debugSkipKey))
+        {
+            if (logSessionEvents) Debug.Log("[Session] 디버그 스킵 — 즉시 종료");
+            EndSession();
+            return;
+        }
+
+        float dt = Time.deltaTime;
+
+        // engaged + stableZone != None 일 때만 양치 시간 가산, 아니면 '쉰 시간' 누적.
+        // engagement 게이트는 이미 BrushingPipeline에서 적용된 값(latestEngaged) 사용.
         if (latestEngaged && latestStable != MlZone.None)
         {
-            float dt = Time.deltaTime;
             totalElapsed += dt;
+            currentIdleRun = 0f;          // 양치 중 → 연속 쉼 끊김.
 
             // stableZone(ML 8-class)을 UiZone(5-class)으로 매핑해 1~2개 zone에 가산.
             // SideLeft → UpperLeft + LowerLeft 같이 두 zone에 동시 가산되는 케이스 포함.
@@ -106,6 +134,12 @@ public class BrushingSession : MonoBehaviour
                 zoneElapsed[idx] += dt;
             }
         }
+        else
+        {
+            // 양치를 쉬는 중 — 연속 쉼 시간 누적 + 최장 기록 갱신(점수 '지속성' 평가용).
+            currentIdleRun += dt;
+            if (currentIdleRun > longestIdleRun) longestIdleRun = currentIdleRun;
+        }
 
         // Tick 이벤트 발행 (throttle). UI가 카운터를 갱신할 수 있도록.
         if (Time.time >= nextTickTime)
@@ -114,7 +148,14 @@ public class BrushingSession : MonoBehaviour
             PublishTick();
         }
 
-        // 자동 종료 조건 검사 — 모든 zone이 목표 도달 + 전체 시간 목표 이상.
+        // 자동 종료 1) 세션 시작 후 일정 시간(기본 3분) 경과 — 벽시계 기준.
+        if (autoEndAfterSeconds > 0f && Time.time - sessionStartTime >= autoEndAfterSeconds)
+        {
+            EndSession();
+            return;
+        }
+
+        // 자동 종료 2) 모든 zone이 목표 도달 + 전체 시간 목표 이상(옵션).
         if (autoEndOnTargetReached && HasAchievedTarget())
         {
             EndSession();
@@ -138,6 +179,9 @@ public class BrushingSession : MonoBehaviour
         isSessionActive = true;
         latestStable = MlZone.None;
         latestEngaged = false;
+        sessionStartTime = Time.time;   // 벽시계 기준 3분 자동 종료의 기준 시각.
+        currentIdleRun = 0f;
+        longestIdleRun = 0f;
 
         if (logSessionEvents)
             Debug.Log($"[Session] Start — targetTotal={targetTotalSeconds:F0}s, perZone={targetPerZoneSeconds:F0}s");
@@ -168,11 +212,12 @@ public class BrushingSession : MonoBehaviour
 
         EventBus.Publish(new BrushingSessionCompletedEvent
         {
-            totalElapsed   = totalElapsed,
-            zoneElapsed    = snapshot,
-            targetTotal    = targetTotalSeconds,
-            targetPerZone  = targetPerZoneSeconds,
-            achievedTarget = achieved,
+            totalElapsed       = totalElapsed,
+            zoneElapsed        = snapshot,
+            targetTotal        = targetTotalSeconds,
+            targetPerZone      = targetPerZoneSeconds,
+            achievedTarget     = achieved,
+            longestIdleSeconds = longestIdleRun,
         });
     }
 

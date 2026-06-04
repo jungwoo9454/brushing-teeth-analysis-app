@@ -52,6 +52,12 @@ public class ToothbrushDetector : MonoBehaviour, IDisposable
     /// </summary>
     private const int OUTPUT_CHANNELS = 11;
 
+    /// <summary>
+    /// letterbox 패딩색. ultralytics YOLO가 학습·추론 전처리에서 쓰는 (114,114,114) 회색.
+    /// 검정/흰색 패딩은 입력 분포를 어긋나게 해 검출 정확도를 떨어뜨린다(unity_port §3).
+    /// </summary>
+    private static readonly Color GRAY_PAD = new Color(114f / 255f, 114f / 255f, 114f / 255f, 1f);
+
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
     // ─────────────────────────────────────────────────────────────
@@ -176,20 +182,21 @@ public class ToothbrushDetector : MonoBehaviour, IDisposable
         new Vector2((p.x - lastPadX) / lastScale, (p.y - lastPadY) / lastScale);
 
     /// <summary>
-    /// source를 inputRt(640×640)에 letterbox로 그린다.
-    /// 비율 보존을 위해 GL.Viewport를 letterbox 영역으로 제한하고,
-    /// 빈 영역은 검은색으로 클리어 — ultralytics YOLO의 자동 letterbox와 동일 거동을 목표.
+    /// source를 inputRt(640×640)에 letterbox로 그린다 — ultralytics YOLO 전처리와 동일.
+    /// 비율을 보존해 가장 긴 변을 640에 맞추고, 남는 영역은 회색(114)으로 패딩한다.
+    /// stretch(비율 왜곡)나 검정 패딩은 입력 분포를 어긋나게 해 검출 정확도를 크게
+    /// 떨어뜨린다 — 특히 칫솔이 작거나 부분 가려지는 어금니 자세에서 검출이 실패한다.
+    ///
+    /// Graphics.Blit은 dest 전체를 덮어써 letterbox 영역 제한이 불가능하므로
+    /// (GL.Viewport를 무시), GL.LoadPixelMatrix + Graphics.DrawTexture로
+    /// 지정 사각형에만 source를 그린다. 참조: unity_port/INTEGRATION.md §3.
     /// </summary>
-    /// <remarks>
-    /// 주의: Graphics.Blit이 내부적으로 viewport를 덮어쓰는 경우가 있어 일부 플랫폼에서는
-    ///       letterbox가 적용되지 않을 수 있다. 정확도 검증 시 학습 분포와 차이가 보이면
-    ///       CommandBuffer + Material 기반의 정밀 letterbox로 재구현할 것 (TODO).
-    /// </remarks>
     private void DrawLetterbox(Texture source)
     {
         int s = MlConstants.YOLO_INPUT_SIZE;
         float srcW = source.width;
         float srcH = source.height;
+        if (srcW <= 0f || srcH <= 0f) return;
 
         // 비율 보존 스케일 — 긴 변을 s에 맞춤. 짧은 변에 padding 발생.
         lastScale = Mathf.Min(s / srcW, s / srcH);
@@ -198,13 +205,19 @@ public class ToothbrushDetector : MonoBehaviour, IDisposable
         lastPadX = (s - scaledW) * 0.5f;
         lastPadY = (s - scaledH) * 0.5f;
 
-        // RT를 검정으로 클리어 → letterbox 영역에 source 그리기.
         var prev = RenderTexture.active;
         RenderTexture.active = inputRt;
-        GL.Clear(true, true, Color.black);
-        GL.Viewport(new Rect(lastPadX, lastPadY, scaledW, scaledH));
-        Graphics.Blit(source, inputRt);
-        GL.Viewport(new Rect(0, 0, s, s));  // viewport 원복 — 이후 렌더링에 영향 안 가도록.
+
+        // 남는 영역을 ultralytics와 동일한 회색(114/255)으로 채운다.
+        GL.Clear(true, true, GRAY_PAD);
+
+        // 픽셀 좌표계(원점 좌상단, y 아래로 +)에서 letterbox 사각형에만 source를 그린다.
+        // Graphics.DrawTexture는 Graphics.Blit과 달리 지정 Rect 영역에만 그린다.
+        GL.PushMatrix();
+        GL.LoadPixelMatrix(0f, s, s, 0f);
+        Graphics.DrawTexture(new Rect(lastPadX, lastPadY, scaledW, scaledH), source);
+        GL.PopMatrix();
+
         RenderTexture.active = prev;
     }
 }

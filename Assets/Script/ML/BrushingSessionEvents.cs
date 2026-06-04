@@ -67,4 +67,7 @@ public struct BrushingSessionCompletedEvent
     /// UI는 이걸로 "성공/미완료" 메시지를 분기.
     /// </summary>
     public bool achievedTarget;
+
+    /// <summary>세션 중 가장 길게 연속으로 양치를 쉰 시간(초). 점수의 '지속성' 평가에 사용.</summary>
+    public float longestIdleSeconds;
 }
