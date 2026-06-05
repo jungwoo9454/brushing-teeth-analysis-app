@@ -37,6 +37,16 @@ public class AppRouter : Singleton<AppRouter>
     [Tooltip("양치 결과(브러싱 피니쉬) 화면 프리팹(루트 Canvas).")]
     [SerializeField] private GameObject brushingFinishPrefab;
 
+    [Header("바텀 탭 화면 프리팹 (Assets/Prefabs/UI/) — 각 탭이 가리키는 화면")]
+    [Tooltip("Home 탭 화면 프리팹(루트 Canvas, 보통 Bottom Tab 포함).")]
+    [SerializeField] private GameObject homePrefab;
+    [Tooltip("Report 탭 화면 프리팹.")]
+    [SerializeField] private GameObject reportPrefab;
+    [Tooltip("Buddy 탭 화면 프리팹.")]
+    [SerializeField] private GameObject buddyPrefab;
+    [Tooltip("Setting 탭 화면 프리팹.")]
+    [SerializeField] private GameObject settingPrefab;
+
     [Header("동작")]
     [Tooltip("앱 최초 시작 시(메인 씬) 자동으로 메뉴 화면을 띄운다.")]
     [SerializeField] private bool showMenuOnStart = true;
@@ -56,6 +66,9 @@ public class AppRouter : Singleton<AppRouter>
 
     /// <summary>가장 최근 양치 결과 — BrushingFinish/Report 화면이 사용.</summary>
     public BrushingScoredEvent LastResult => lastResult;
+
+    /// <summary>현재 표시 중인 바텀 탭. BottomTabBar가 활성 표시를 동기화할 때 참고할 수 있다.</summary>
+    public BottomTab CurrentTab { get; private set; } = BottomTab.Home;
 
     // ─────────────────────────────────────────────────────────────
     // 생명주기
@@ -216,6 +229,49 @@ public class AppRouter : Singleton<AppRouter>
             case Screen.MainMenu:       return mainMenuPrefab;
             case Screen.BrushingFinish: return brushingFinishPrefab;
             default:                    return null;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 바텀 탭 — 탭이 가리키는 화면 프리팹으로 교체
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 지정 탭의 화면 프리팹을 생성해 표시한다(기존 화면은 교체).
+    /// BottomTabBar가 탭 클릭 시 호출한다. 새 화면 프리팹에 포함된 BottomTabBar가
+    /// 자기 탭을 활성 표시하므로, 여기서 시각화를 따로 갱신할 필요는 없다.
+    /// </summary>
+    public void ShowTab(BottomTab tab)
+    {
+        var prefab = TabPrefab(tab);
+        if (prefab == null)
+        {
+            Debug.LogError($"[AppRouter] {tab} 탭 프리팹이 연결되지 않았다 — 인스펙터에서 지정하라.");
+            return;
+        }
+
+        CurrentTab = tab;
+        pendingScreen = Screen.None;
+
+        if (currentScreenInstance != null)
+        {
+            Destroy(currentScreenInstance);
+            currentScreenInstance = null;
+        }
+
+        currentScreenInstance = Instantiate(prefab);
+        currentScreenInstance.SetActive(true);
+    }
+
+    private GameObject TabPrefab(BottomTab tab)
+    {
+        switch (tab)
+        {
+            case BottomTab.Home:    return homePrefab;
+            case BottomTab.Report:  return reportPrefab;
+            case BottomTab.Buddy:   return buddyPrefab;
+            case BottomTab.Setting: return settingPrefab;
+            default:                return null;
         }
     }
 }
