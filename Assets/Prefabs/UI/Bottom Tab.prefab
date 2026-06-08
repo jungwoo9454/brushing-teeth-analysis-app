@@ -130,6 +130,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5399917126006363390}
   - component: {fileID: 2337973808070733739}
+  - component: {fileID: 7372452579064824051}
   m_Layer: 0
   m_Name: Bottom Tab
   m_TagString: Untagged
@@ -186,6 +187,32 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &7372452579064824051
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6250647376653766407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d077719e59474eb99f4deb9109f95e15, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BottomTabBar
+  currentTab: 0
+  homeActiveSprite: {fileID: 21300000, guid: 45104dfbe98044842af53f87233e800c, type: 3}
+  reportActiveSprite: {fileID: 21300000, guid: 88776799fb06c8e4cb943a9a9ee4fbc6, type: 3}
+  buddyActiveSprite: {fileID: 0}
+  settingActiveSprite: {fileID: 21300000, guid: 50d7a0246027b55488f3879632f5d5e6, type: 3}
+  homeButton: {fileID: 0}
+  reportButton: {fileID: 0}
+  buddyButton: {fileID: 0}
+  settingButton: {fileID: 0}
+  enabledTabs: 000000000100000003000000
+  navigateViaAppRouter: 1
+  onTabSelected:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &7052135439667582652
 GameObject:
   m_ObjectHideFlags: 0

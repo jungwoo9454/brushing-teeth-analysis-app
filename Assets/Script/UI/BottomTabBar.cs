@@ -47,6 +47,12 @@ public class BottomTabBar : MonoBehaviour
     [SerializeField] private Button buddyButton;
     [SerializeField] private Button settingButton;
 
+    [Header("사용할 탭 (목록에 있는 탭만 클릭/전환 가능)")]
+    [Tooltip("여기 포함된 탭만 동작한다. 기본은 Home/Report/Setting — 즉 Buddy(바디)는 제외. " +
+             "제외된 탭의 버튼은 비활성(interactable=false)되고 클릭해도 전환되지 않는다.")]
+    [SerializeField]
+    private BottomTab[] enabledTabs = { BottomTab.Home, BottomTab.Report, BottomTab.Setting };
+
     [Header("동작")]
     [Tooltip("켜면 탭 클릭 시 AppRouter.ShowTab으로 화면 프리팹을 전환한다. 끄면 onTabSelected만 호출하고 이 바가 직접 활성 표시를 갱신한다.")]
     [SerializeField] private bool navigateViaAppRouter = true;
@@ -81,6 +87,12 @@ public class BottomTabBar : MonoBehaviour
         BuildTab(BottomTab.Buddy,   buddyButton,   NameBuddy,   buddyActiveSprite);
         BuildTab(BottomTab.Setting, settingButton, NameSetting, settingActiveSprite);
 
+        // 활성 탭의 단일 출처는 AppRouter.CurrentTab.
+        // 모든 화면이 동일한 Bottom Tab 프리팹 인스턴스를 써도, 지금 떠 있는 화면(탭)에 맞춰 자동으로 활성 표시된다.
+        // (serialized currentTab은 AppRouter가 없을 때의 fallback일 뿐)
+        if (navigateViaAppRouter && AppRouter.ins != null)
+            currentTab = AppRouter.ins.CurrentTab;
+
         ApplyVisual();
     }
 
@@ -108,25 +120,45 @@ public class BottomTabBar : MonoBehaviour
         };
         _tabs.Add(tab);
 
-        button.onClick.AddListener(() => Select(id));
+        if (IsEnabled(id))
+        {
+            button.onClick.AddListener(() => Select(id));
+        }
+        else
+        {
+            // 사용하지 않는 탭(예: 바디)은 클릭 불가로 둔다. 아이콘은 일반 스프라이트 그대로 유지.
+            button.interactable = false;
+        }
+    }
+
+    private bool IsEnabled(BottomTab tab)
+    {
+        if (enabledTabs == null || enabledTabs.Length == 0) return true;
+        foreach (var t in enabledTabs)
+            if (t == tab) return true;
+        return false;
     }
 
     /// <summary>탭 선택 — 기본은 AppRouter로 화면 전환. 현재 탭을 다시 누르면 무시한다.</summary>
     public void Select(BottomTab tab)
     {
-        if (tab == currentTab) return;
+        if (!IsEnabled(tab)) return;     // 사용하지 않는 탭(바디 등)은 무시
+
+        var router = navigateViaAppRouter ? AppRouter.ins : null;
+        // 현재 탭 판정도 AppRouter가 단일 출처 — 그래야 어느 화면에서든 '다른 탭'으로 정확히 전환된다.
+        var current = router != null ? router.CurrentTab : currentTab;
+        if (tab == current) return;      // 이미 그 탭이면 무시
 
         onTabSelected.Invoke(tab);
 
         if (navigateViaAppRouter)
         {
-            var router = AppRouter.ins;
             if (router == null)
             {
                 Debug.LogError("[BottomTabBar] AppRouter를 찾을 수 없다 — 탭 전환 불가.");
                 return;
             }
-            // 화면 프리팹이 통째로 교체되며, 새 화면의 BottomTabBar가 자기 탭을 활성 표시한다.
+            // 화면 프리팹이 통째로 교체되며, 새 화면의 BottomTabBar가 AppRouter.CurrentTab을 읽어 활성 표시한다.
             router.ShowTab(tab);
         }
         else

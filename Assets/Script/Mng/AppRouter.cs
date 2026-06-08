@@ -38,14 +38,11 @@ public class AppRouter : Singleton<AppRouter>
     [SerializeField] private GameObject brushingFinishPrefab;
 
     [Header("바텀 탭 화면 프리팹 (Assets/Prefabs/UI/) — 각 탭이 가리키는 화면")]
-    [Tooltip("Home 탭 화면 프리팹(루트 Canvas, 보통 Bottom Tab 포함).")]
-    [SerializeField] private GameObject homePrefab;
-    [Tooltip("Report 탭 화면 프리팹.")]
+    [Tooltip("Report 탭 화면 프리팹 (BrushingDetailReport).")]
     [SerializeField] private GameObject reportPrefab;
-    [Tooltip("Buddy 탭 화면 프리팹.")]
-    [SerializeField] private GameObject buddyPrefab;
-    [Tooltip("Setting 탭 화면 프리팹.")]
+    [Tooltip("Setting 탭 화면 프리팹 (Setting).")]
     [SerializeField] private GameObject settingPrefab;
+    // Home 탭은 별도 프리팹 없이 mainMenuPrefab을 그대로 쓴다. Buddy(바디) 탭은 사용하지 않는다.
 
     [Header("동작")]
     [Tooltip("앱 최초 시작 시(메인 씬) 자동으로 메뉴 화면을 띄운다.")]
@@ -211,6 +208,9 @@ public class AppRouter : Singleton<AppRouter>
             return;
         }
 
+        // 메인 메뉴 = Home 탭 화면. 바텀 탭이 Home을 활성 표시하도록 CurrentTab을 Instantiate 전에 동기화.
+        if (screen == Screen.MainMenu) CurrentTab = BottomTab.Home;
+
         currentScreenInstance = Instantiate(prefab);
         currentScreenInstance.SetActive(true);
 
@@ -267,11 +267,10 @@ public class AppRouter : Singleton<AppRouter>
     {
         switch (tab)
         {
-            case BottomTab.Home:    return homePrefab;
+            case BottomTab.Home:    return mainMenuPrefab;   // 홈 = 메인 메뉴 화면
             case BottomTab.Report:  return reportPrefab;
-            case BottomTab.Buddy:   return buddyPrefab;
             case BottomTab.Setting: return settingPrefab;
-            default:                return null;
+            default:                return null;             // Buddy(바디) 등 미사용 탭
         }
     }
 }

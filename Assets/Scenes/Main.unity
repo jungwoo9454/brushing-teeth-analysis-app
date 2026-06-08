@@ -441,6 +441,8 @@ MonoBehaviour:
   brushingSceneName: Brushing
   mainMenuPrefab: {fileID: 5387374471802995068, guid: 2053c9004b055c246b6e72f9cec8384b, type: 3}
   brushingFinishPrefab: {fileID: 1892007969210588317, guid: 3d095883751f2b64c8085c5d840d9e17, type: 3}
+  reportPrefab: {fileID: 7995648160208272991, guid: 19c037da9eea92b45b9b922563d1d8a4, type: 3}
+  settingPrefab: {fileID: 7995648160208272991, guid: acf0e34965072cd48b777c5bb64a78bb, type: 3}
   showMenuOnStart: 1
 --- !u!4 &2035685798
 Transform:
