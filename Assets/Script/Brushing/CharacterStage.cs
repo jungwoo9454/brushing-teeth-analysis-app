@@ -156,7 +156,13 @@ public class CharacterStage : MonoBehaviour
     {
         if (characterPrefab == null)
         {
-            Debug.LogError("[CharacterStage] characterPrefab이 비어 있다 — 캐릭터를 렌더할 수 없다.");
+            // 캐릭터 프리팹(예: 유료 에셋 Rob13)이 비어 있으면 스테이지를 만들지 않고 조용히 비활성화한다.
+            // 유료 캐릭터 에셋은 라이선스상 공개 저장소에서 제외돼 있어, 에셋 없이 클론한 경우 이 경로를 탄다.
+            // 이 컴포넌트만 꺼질 뿐 앱 전체 동작에는 영향이 없다.
+            // 직접 만든 캐릭터를 연결하는 방법은 Docs/CUSTOM_CHARACTER.md 참고.
+            Debug.LogWarning("[CharacterStage] characterPrefab이 지정되지 않아 캐릭터 렌더를 건너뛴다(앱 동작에는 영향 없음). " +
+                             "커스텀 캐릭터 연결법은 Docs/CUSTOM_CHARACTER.md 참고.");
+            enabled = false;
             return;
         }
 
