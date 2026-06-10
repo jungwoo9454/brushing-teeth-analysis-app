@@ -3,7 +3,7 @@ using UnityEngine.UI;  // RawImage — 카메라 미리보기 표시용
 
 /// <summary>
 /// 양치 ML 파이프라인의 조립자(MonoBehaviour).
-/// 매 프레임 MediaPipe → MouthInfo → YOLO → FeatureBuilder → MLP → Engagement → Stability →
+/// 매 프레임 MediaPipe → MouthInfo → YOLO → Engagement → FeatureBuilder → MLP(softmax) → Kalman(EMA) →
 /// UI 매핑 순서로 실행하고, 결과를 EventBus.Publish(ZoneDetectedEvent)로 발행한다.
 /// 양치 씬의 메인 GameObject에 부착하여 사용.
 ///
@@ -51,7 +51,7 @@ public class BrushingPipeline : MonoBehaviour
     // ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 가장 최근에 확정된 양치 구역(8-class, engagement·stability 적용 후의 stableZone).
+    /// 가장 최근에 확정된 양치 구역(8-class, engagement·칼만 EMA 평활 적용 후의 stableZone).
     /// 양치 중이 아니거나 미검출 상태가 이어지면 MlZone.None.
     /// </summary>
     public MlZone CurrentZone { get; private set; } = MlZone.None;
@@ -75,11 +75,14 @@ public class BrushingPipeline : MonoBehaviour
     // unmirror 결과를 담을 RenderTexture. unmirror가 필요 없을 땐 null로 유지.
     private RenderTexture sourceRt;
 
-    // 시간 안정화 — 매 프레임 raw zone을 Push.
-    private readonly StabilityBuffer stability = new StabilityBuffer();
+    // 시간 평활 — 매 프레임 softmax 확률 벡터(또는 None 감쇠)를 Push (HANDOFF §7 칼만 EMA).
+    private readonly KalmanZoneFilter kalman = new KalmanZoneFilter();
 
     // 14-D feature 출력 버퍼 — 매 프레임 재사용해 GC 회피.
     private readonly float[] featBuffer = new float[FeatureBuilder.FEATURE_DIM];
+
+    // MLP softmax 확률(8-dim) 출력 버퍼 — 매 프레임 재사용해 GC 회피.
+    private readonly float[] probsBuffer = new float[KalmanZoneFilter.CLASS_COUNT];
 
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
@@ -167,39 +170,40 @@ public class BrushingPipeline : MonoBehaviour
         // ── 단계 5: YOLO 칫솔 검출 (conf 0.01, swap 적용). ──
         var brush = detector.Detect(source);
 
-        // ── 단계 6: feature 빌드 → MLP 추론. 가드 실패면 MLP 호출 자체를 스킵해서 비용 절감. ──
-        MlZone zone;
-        if (!guardOk)
-        {
-            zone = MlZone.None;
-        }
-        else
-        {
-            FeatureBuilder.Build(face, brush, featBuffer);
-            zone = classifier.Predict(featBuffer);
-        }
-
-        // ── 단계 7: Engagement 체크 (head ∈ polygon AND mouth_overlap ≥ 0.10). 미통과 시 zone을 None으로 강제. ──
+        // ── 단계 6: Engagement 체크 (head ∈ polygon AND mouth_overlap ≥ 0.10). 얼굴/칫솔 유효할 때만. ──
         bool engaged = false;
-        if (brush.hasDetection && brush.hasHead && face.isValid && face.polygon != null)
+        if (guardOk && brush.hasDetection && brush.hasHead && face.polygon != null)
         {
             engaged = EngagementChecker.IsEngaged(
                 brush.head, brush.bbox, face.polygon,
                 MlConstants.MOUTH_OVERLAP_THRESHOLD, out _);
         }
-        if (!engaged) zone = MlZone.None;
 
-        // ── 단계 8: stability buffer로 시간 안정화 (window=3, min_count=2). ──
-        MlZone stable = stability.Push(zone);
+        // ── 단계 7: engaged면 feature→MLP softmax 확률로 칼만 EMA 갱신, 아니면 None 쪽으로 감쇠. ──
+        //    비engaged 프레임은 MLP를 호출하지 않는다(어차피 None — 비용 절감).
+        MlZone rawZone;
+        MlZone stable;
+        if (engaged)
+        {
+            FeatureBuilder.Build(face, brush, featBuffer);
+            classifier.PredictProbs(featBuffer, probsBuffer);
+            rawZone = (MlZone)KalmanZoneFilter.ArgMax(probsBuffer);  // 평활 전 순간 zone(이벤트 참고용).
+            stable  = kalman.PushProbs(probsBuffer);
+        }
+        else
+        {
+            rawZone = MlZone.None;
+            stable  = kalman.PushNone();
+        }
 
-        // ── 단계 9: 5-zone UI 매핑 + 외부 공개 상태 갱신 + 이벤트 발행. ──
+        // ── 단계 8: 5-zone UI 매핑 + 외부 공개 상태 갱신 + 이벤트 발행. ──
         var uiZones = UIZoneMapper.Map(stable);
         CurrentZone    = stable;
         CurrentUiZones = uiZones;
 
         EventBus.Publish(new ZoneDetectedEvent
         {
-            rawZone    = zone,
+            rawZone    = rawZone,
             stableZone = stable,
             uiZones    = uiZones,
             isEngaged  = engaged,
@@ -259,12 +263,12 @@ public class BrushingPipeline : MonoBehaviour
 
     /// <summary>
     /// 검출 실패/스킵 프레임용 빈 이벤트 발행.
-    /// 미검출 프레임도 stability에 None으로 Push한다 — 짧은 끊김은 StabilityBuffer가
-    /// 흡수하지만, 충분히 이어지면(idleResetFrames) stableZone이 None으로 떨어진다.
+    /// 미검출 프레임도 칼만 state를 None 쪽으로 감쇠시킨다 — 짧은 끊김은 EMA가 흡수하지만,
+    /// 충분히 이어지면 stableZone이 None으로 수렴한다.
     /// </summary>
     private void PublishEmpty()
     {
-        MlZone stable = stability.Push(MlZone.None);
+        MlZone stable = kalman.PushNone();
         var uiZones = UIZoneMapper.Map(stable);
         CurrentZone    = stable;
         CurrentUiZones = uiZones;
