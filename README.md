@@ -45,9 +45,9 @@ AI로 아이의 양치 동작을 실시간 분석하고, AR·게임 요소로 �
   → MediaPipe Face Mesh (입 폴리곤·중심·pitch)
   → YOLOv8n-pose v3 (칫솔 bbox + 키포인트 2개)
   → 14차원 특징 벡터 생성
-  → MLP 분류기 (8개 zone)
-  → 다중 프레임 안정화 (window 3, min count 2)
+  → MLP 분류기 (8개 zone, softmax 확률)
   → 입 접촉 여부(engagement) 체크
+  → 칼만 필터 (확률 EMA, K=0.3) — 프레임 간 튐 완화
   → 5개 구역 매핑 → AR 피드백
 ```
 
@@ -91,6 +91,16 @@ git lfs install && git lfs pull
 
 1. **Unity 6000.4.9f1**로 프로젝트를 엽니다.
 2. `Assets/Scenes/Main.unity` 씬을 실행합니다.
+
+## 캐릭터 에셋 안내
+
+메뉴·결과·양치 화면의 3D 캐릭터는 **유료 에셋**이라 라이선스상 이 저장소에 포함되어
+있지 않습니다. 캐릭터 없이도 앱은 정상적으로 빌드·실행되며, 캐릭터를 그리는 컴포넌트만
+자동으로 비활성화됩니다(다른 기능에는 영향 없음).
+
+직접 만든(혹은 보유한) 캐릭터를 연결하려면 **[`Docs/CUSTOM_CHARACTER.md`](Docs/CUSTOM_CHARACTER.md)**
+가이드를 참고하세요. 필요한 Animator state 이름, 레이어 설정, 프리팹 연결 절차를 정리해
+두었습니다.
 
 ## 팀원
 

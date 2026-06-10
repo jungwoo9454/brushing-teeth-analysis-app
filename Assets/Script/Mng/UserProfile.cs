@@ -9,8 +9,8 @@ using System;
 [Serializable]
 public class UserProfile
 {
-    /// <summary>표시용 유저 이름. 기본은 빈 문자열, 온보딩/설정에서 채운다.</summary>
-    public string userName = "";
+    /// <summary>표시용 유저 이름. 기본값은 "하준"(온보딩/설정에서 변경).</summary>
+    public string userName = "하준";
 
     // ── 확장 지점 ──
     // 여기에 공유하고 싶은 유저 데이터를 필드로 추가하면 자동으로 저장/복원된다.

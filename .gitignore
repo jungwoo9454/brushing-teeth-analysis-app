@@ -111,3 +111,9 @@ InitTestScene*.unity*
 # 디버그 스크린샷 — 검증용 일회성 산출물, 커밋 안 함.
 /[Aa]ssets/[Ss]creenshots/
 /[Aa]ssets/[Ss]creenshots.meta
+
+# 유료 3D 캐릭터 에셋(Rob13 등) — 라이선스상 공개 저장소에 재배포할 수 없다.
+# 저장소에서 제외하며, 앱은 캐릭터 에셋이 없어도 정상 동작한다.
+# 직접 만든 캐릭터를 연결하는 방법은 Docs/CUSTOM_CHARACTER.md 참고.
+/[Aa]ssets/[Cc]haracter/
+/[Aa]ssets/[Cc]haracter.meta
