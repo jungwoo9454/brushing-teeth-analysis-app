@@ -35,10 +35,12 @@ public class ParentInfoView : MonoBehaviour
     private readonly List<Option> _prefixes = new List<Option>();
     private Option _selected;
     private TMP_InputField _nameInput;
+    private Button _next;
 
     private void Awake()
     {
         _nameInput = transform.Find(PathName)?.GetComponentInChildren<TMP_InputField>(true);
+        if (_nameInput != null) _nameInput.onValueChanged.AddListener(_ => RefreshNext());
 
         var prefixRoot = transform.Find(PathPrefix);
         if (prefixRoot != null)
@@ -64,16 +66,25 @@ public class ParentInfoView : MonoBehaviour
             }
         }
 
-        var next = OnboardingUtil.EnsureButton(transform.Find(PathNext));
-        if (next != null) next.onClick.AddListener(OnNext);
+        _next = OnboardingUtil.EnsureButton(transform.Find(PathNext));
+        if (_next != null) _next.onClick.AddListener(OnNext);
 
         var back = OnboardingUtil.EnsureButton(transform.Find(PathBack));
         if (back != null) back.onClick.AddListener(() => AppRouter.ins.ShowScreen(AppRouter.Screen.Clause));
 
         ApplyVisuals();
+        RefreshNext();
     }
 
-    private void Select(Option opt) { _selected = opt; ApplyVisuals(); }
+    private void Select(Option opt) { _selected = opt; ApplyVisuals(); RefreshNext(); }
+
+    /// <summary>이름 입력(1자 이상) + 호칭 선택이 모두 충족돼야 Next 활성화.</summary>
+    private void RefreshNext()
+    {
+        if (_next == null) return;
+        string name = _nameInput != null ? _nameInput.text.Trim() : "";
+        _next.interactable = !string.IsNullOrEmpty(name) && _selected != null;
+    }
 
     private void ApplyVisuals()
     {

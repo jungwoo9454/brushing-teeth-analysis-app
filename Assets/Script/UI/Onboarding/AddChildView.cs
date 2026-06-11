@@ -36,12 +36,32 @@ public class AddChildView : MonoBehaviour
     private Option _selected;
     private TMP_InputField _nameInput;
     private TMP_InputField _ageInput;
+    private Button _next;
+
+    // 설정 화면에서 팝업으로 띄운 경우: 완료 시 온보딩 대신 콜백으로 목록 갱신·닫기.
+    private bool _settingsMode;
+    private System.Action _onChildAdded;
+    private System.Action _onClose;
+
+    /// <summary>
+    /// 설정 화면에서 '아이 추가' 팝업으로 재사용할 때 호출. 완료 시 온보딩 완료/메인 이동 대신
+    /// <paramref name="onAdded"/>(목록 갱신)를, Back 시 <paramref name="onClose"/>(닫기)를 호출한다.
+    /// (Instantiate 직후 Awake 다음에 호출하면 된다.)
+    /// </summary>
+    public void ConfigureForSettings(System.Action onAdded, System.Action onClose)
+    {
+        _settingsMode = true;
+        _onChildAdded = onAdded;
+        _onClose = onClose;
+    }
 
     private void Awake()
     {
         _nameInput = transform.Find(PathName)?.GetComponentInChildren<TMP_InputField>(true);
         _ageInput  = transform.Find(PathAge)?.GetComponentInChildren<TMP_InputField>(true);
         if (_ageInput != null) _ageInput.contentType = TMP_InputField.ContentType.IntegerNumber;
+        if (_nameInput != null) _nameInput.onValueChanged.AddListener(_ => RefreshNext());
+        if (_ageInput != null)  _ageInput.onValueChanged.AddListener(_ => RefreshNext());
 
         var sex = transform.Find(PathSex);
         if (sex != null)
@@ -67,16 +87,33 @@ public class AddChildView : MonoBehaviour
             }
         }
 
-        var next = OnboardingUtil.EnsureButton(transform.Find(PathNext));
-        if (next != null) next.onClick.AddListener(OnNext);
+        _next = OnboardingUtil.EnsureButton(transform.Find(PathNext));
+        if (_next != null) _next.onClick.AddListener(OnNext);
 
         var back = OnboardingUtil.EnsureButton(transform.Find(PathBack));
-        if (back != null) back.onClick.AddListener(() => AppRouter.ins.ShowScreen(AppRouter.Screen.PinInput));
+        if (back != null) back.onClick.AddListener(OnBack);
 
         ApplyVisuals();
+        RefreshNext();
     }
 
-    private void Select(Option opt) { _selected = opt; ApplyVisuals(); }
+    private void Select(Option opt) { _selected = opt; ApplyVisuals(); RefreshNext(); }
+
+    /// <summary>이름·나이(각 1자 이상) + 성별 선택이 모두 충족돼야 Next 활성화.</summary>
+    private void RefreshNext()
+    {
+        if (_next == null) return;
+        string name = _nameInput != null ? _nameInput.text.Trim() : "";
+        string age  = _ageInput != null ? _ageInput.text.Trim() : "";
+        _next.interactable = !string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(age) && _selected != null;
+    }
+
+    private void OnBack()
+    {
+        // 설정에서 띄운 팝업이면 닫기만, 온보딩이면 이전(PIN) 단계로.
+        if (_settingsMode) { _onClose?.Invoke(); return; }
+        AppRouter.ins.ShowScreen(AppRouter.Screen.PinInput);
+    }
 
     private void ApplyVisuals()
     {
@@ -91,11 +128,19 @@ public class AddChildView : MonoBehaviour
     private void OnNext()
     {
         string name = _nameInput != null ? _nameInput.text.Trim() : "";
-        if (string.IsNullOrEmpty(name) || _selected == null) return;   // 이름·성별 필수.
+        string ageStr = _ageInput != null ? _ageInput.text.Trim() : "";
+        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(ageStr) || _selected == null) return;   // 이름·나이·성별 필수.
 
-        int.TryParse(_ageInput != null ? _ageInput.text.Trim() : "", out int age);
-
+        int.TryParse(ageStr, out int age);
         UserMng.ins.AddChild(name, age, _selected.value);   // 아이 프로필 추가(첫 아이는 자동 활성)
+
+        if (_settingsMode)
+        {
+            // 설정에서 추가: 온보딩 완료/메인 이동 없이 목록만 갱신·닫기.
+            _onChildAdded?.Invoke();
+            return;
+        }
+
         UserMng.ins.CompleteOnboarding();
         AppRouter.ins.ShowScreen(AppRouter.Screen.MainMenu);
     }
