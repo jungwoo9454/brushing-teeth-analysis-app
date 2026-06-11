@@ -4268,6 +4268,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1145740000288428625}
   - component: {fileID: 4397075985347057218}
+  - component: {fileID: 2956121140369947665}
   m_Layer: 0
   m_Name: RealSpace
   m_TagString: Untagged
@@ -4327,6 +4328,19 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &2956121140369947665
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8151171409372303943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d22e23ca6e66ff143abf941eb36b1f9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LayoutRebuildOnEnable
+  rebuildNextFrame: 1
 --- !u!1 &8386886229423339749
 GameObject:
   m_ObjectHideFlags: 0
