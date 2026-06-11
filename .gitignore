@@ -123,3 +123,6 @@ InitTestScene*.unity*
 # 직접 만든/보유한 아이콘을 StickerCatalog에 넣는 방법은 Docs/CUSTOM_STICKERS.md 참고.
 /[Aa]ssets/[Tt]exture/[Ii]cons/
 /[Aa]ssets/[Tt]exture/[Ii]cons.meta
+
+# 프로젝트 내보내기/백업 압축 산출물 — 저장소에 커밋하지 않는다(수 GB).
+*.zip
