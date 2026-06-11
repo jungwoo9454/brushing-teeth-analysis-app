@@ -102,6 +102,14 @@ git lfs install && git lfs pull
 가이드를 참고하세요. 필요한 Animator state 이름, 레이어 설정, 프리팹 연결 절차를 정리해
 두었습니다.
 
+## 버디 보상(스티커) 에셋 안내
+
+양치를 완료할 때마다 랜덤으로 해금되는 **버디 스티커**의 기본 아이콘 팩도 **유료 에셋**이라 이
+저장소에 포함되어 있지 않습니다(`Assets/Texture/Icons/`). 스티커가 없어도 앱은 정상 동작하며
+(해금만 건너뜀), 직접 만든 아이콘을 `StickerCatalog`에 채우면 바로 동작합니다.
+
+설정 방법은 **[`Docs/CUSTOM_STICKERS.md`](Docs/CUSTOM_STICKERS.md)** 가이드를 참고하세요.
+
 ## 팀원
 
 | 이름 | 전공 | 역할 | GitHub |
