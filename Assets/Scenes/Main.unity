@@ -450,6 +450,7 @@ MonoBehaviour:
   addChildPrefab: {fileID: 7995648160208272991, guid: f50716f602a03e842adf6010a89f4584, type: 3}
   showMenuOnStart: 1
   skipOnboarding: 0
+  forceOnboarding: 0
 --- !u!4 &2035685798
 Transform:
   m_ObjectHideFlags: 0
