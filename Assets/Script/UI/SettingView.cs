@@ -18,9 +18,11 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class SettingView : MonoBehaviour
 {
-    [Header("아이 추가 팝업")]
+    [Header("팝업 프리팹")]
     [Tooltip("설정에서 '아이 추가'로 띄울 AddChild 프리팹.")]
     [SerializeField] private GameObject addChildPrefab;
+    [Tooltip("보호자 모드 진입 시 PIN 검증으로 띄울 PinInput 프리팹.")]
+    [SerializeField] private GameObject pinInputPrefab;
 
     private const string PathProfile   = "RealSpace/Profile";
     private const string PathChilds    = "RealSpace/Scroll View/Viewport/Content/Childs";
@@ -36,7 +38,7 @@ public class SettingView : MonoBehaviour
     private TMP_Text _profileText;
 
     private readonly List<GameObject> _spawned = new List<GameObject>();
-    private GameObject _addChildPopup;
+    private GameObject _popup;   // 현재 떠 있는 팝업(AddChild / PinInput) — 한 번에 하나만.
 
     private void Awake()
     {
@@ -51,15 +53,46 @@ public class SettingView : MonoBehaviour
         var addBtn = OnboardingUtil.EnsureButton(_addChild);
         if (addBtn != null) addBtn.onClick.AddListener(OpenAddChild);
 
+        // 상단 프로필 클릭 → 보호자 모드로 전환.
+        var profileBtn = OnboardingUtil.EnsureButton(transform.Find(PathProfile));
+        if (profileBtn != null) profileBtn.onClick.AddListener(EnterGuardianMode);
+
         // Child는 복제용 프로토타입 — 숨겨두고 아이 수만큼 복제한다.
         if (_template != null) _template.gameObject.SetActive(false);
     }
 
+    // 프로필 클릭 → PinInput 팝업으로 PIN 검증 → 일치 시에만 보호자 모드.
+    private void EnterGuardianMode()
+    {
+        if (pinInputPrefab == null)
+        {
+            Debug.LogError("[SettingView] pinInputPrefab이 연결되지 않았다 — 인스펙터에서 PinInput 프리팹을 지정하라.");
+            return;
+        }
+        var go = OpenPopup(pinInputPrefab);
+        var view = go != null ? go.GetComponentInChildren<PinInputView>(true) : null;
+        if (view != null)
+        {
+            view.ConfigureForVerify(onVerified: OnGuardianPinVerified, onClose: ClosePopup);
+        }
+        else
+        {
+            Debug.LogError("[SettingView] PinInput 프리팹에서 PinInputView를 찾지 못했다.");
+            ClosePopup();
+        }
+    }
+
+    private void OnGuardianPinVerified()
+    {
+        ClosePopup();
+        if (UserMng.ins != null) UserMng.ins.SetAppMode(AppMode.Guardian);
+    }
+
     private void OnEnable() => Refresh();
 
-    // 설정이 닫히거나(탭 전환) 파괴되면 떠 있던 추가 팝업도 정리.
-    private void OnDisable() => CloseAddChild();
-    private void OnDestroy() => CloseAddChild();
+    // 설정이 닫히거나(탭 전환) 파괴되면 떠 있던 팝업도 정리.
+    private void OnDisable() => ClosePopup();
+    private void OnDestroy() => ClosePopup();
 
     /// <summary>프로필 + 아이 목록을 현재 데이터로 다시 그린다.</summary>
     public void Refresh()
@@ -146,47 +179,57 @@ public class SettingView : MonoBehaviour
 
     private void OnSelectChild(string childId)
     {
+        if (UserMng.ins == null) return;
         UserMng.ins.SetActiveChild(childId);
-        BuildChildList();   // Current 표시 갱신.
+        UserMng.ins.SetAppMode(AppMode.Child);   // 아이 클릭 → 그 아이 활성 + 아이 모드.
+        BuildChildList();   // (모드 변화 없으면) Current 표시 갱신.
     }
 
     // ── 아이 추가 팝업 ────────────────────────────────────────────
 
     private void OpenAddChild()
     {
-        if (_addChildPopup != null) return;   // 이미 열림.
         if (addChildPrefab == null)
         {
             Debug.LogError("[SettingView] addChildPrefab이 연결되지 않았다 — 인스펙터에서 AddChild 프리팹을 지정하라.");
             return;
         }
 
-        _addChildPopup = Instantiate(addChildPrefab);
-        var canvas = _addChildPopup.GetComponent<Canvas>();
-        if (canvas != null) { canvas.overrideSorting = true; canvas.sortingOrder = 100; }
-
-        var view = _addChildPopup.GetComponentInChildren<AddChildView>(true);
+        var go = OpenPopup(addChildPrefab);
+        var view = go != null ? go.GetComponentInChildren<AddChildView>(true) : null;
         if (view != null)
         {
-            view.ConfigureForSettings(onAdded: OnChildAdded, onClose: CloseAddChild);
+            view.ConfigureForSettings(onAdded: OnChildAdded, onClose: ClosePopup);
         }
         else
         {
             Debug.LogError("[SettingView] AddChild 프리팹에서 AddChildView를 찾지 못했다.");
-            CloseAddChild();
+            ClosePopup();
         }
     }
 
     private void OnChildAdded()
     {
-        CloseAddChild();
+        ClosePopup();
         BuildChildList();
     }
 
-    private void CloseAddChild()
+    // 팝업 1개를 화면 위(Overlay 최상단)에 띄운다 — 기존 팝업이 있으면 닫고 교체.
+    private GameObject OpenPopup(GameObject prefab)
     {
-        if (_addChildPopup == null) return;
-        Destroy(_addChildPopup);
-        _addChildPopup = null;
+        ClosePopup();
+        if (prefab == null) return null;
+
+        _popup = Instantiate(prefab);
+        var canvas = _popup.GetComponent<Canvas>();
+        if (canvas != null) { canvas.overrideSorting = true; canvas.sortingOrder = 100; }
+        return _popup;
+    }
+
+    private void ClosePopup()
+    {
+        if (_popup == null) return;
+        Destroy(_popup);
+        _popup = null;
     }
 }

@@ -20,6 +20,29 @@ public class PinInputView : MonoBehaviour
 {
     [SerializeField] private int pinLength = 4;
     [SerializeField] private string subtitle = "보호자 모드, 핀 설정";
+    [Tooltip("검증(보호자 모드 진입) 모드일 때 표시할 안내.")]
+    [SerializeField] private string verifySubtitle = "보호자 PIN을 입력하세요";
+
+    private const string WrongPinText = "PIN을 잘못 입력하였습니다";
+
+    // 검증(보호자 모드 잠금 해제) 모드 — 설정 화면에서 팝업으로 띄울 때 사용.
+    private bool _verifyMode;
+    private System.Action _onVerified;   // PIN 일치 시
+    private System.Action _onClose;      // Back(취소) 시
+    private TMP_Text _subtitleText;
+
+    /// <summary>
+    /// '보호자 모드 PIN 검증' 모드로 설정한다(설정 화면 팝업용). Instantiate 직후 호출.
+    /// PIN이 맞으면 <paramref name="onVerified"/>, Back으로 닫으면 <paramref name="onClose"/>를 호출한다.
+    /// (호출하지 않으면 기존 온보딩 'PIN 설정' 동작.)
+    /// </summary>
+    public void ConfigureForVerify(System.Action onVerified, System.Action onClose)
+    {
+        _verifyMode = true;
+        _onVerified = onVerified;
+        _onClose = onClose;
+        if (_subtitleText != null) _subtitleText.text = verifySubtitle;
+    }
 
     [Header("인디케이터 팝 연출 (LeanTween)")]
     [Tooltip("채워질 때 시작 스케일(작게 시작해 1로 커진다).")]
@@ -39,8 +62,8 @@ public class PinInputView : MonoBehaviour
 
     private void Awake()
     {
-        var sub = transform.Find(PathSubtitle)?.GetComponent<TMP_Text>();
-        if (sub != null) sub.text = subtitle;
+        _subtitleText = transform.Find(PathSubtitle)?.GetComponent<TMP_Text>();
+        if (_subtitleText != null) _subtitleText.text = subtitle;
 
         // PIN 인디케이터 — PIN/Pin*/Indicator 순서대로 수집하고 모두 끈다.
         var pinRoot = transform.Find(PathPin);
@@ -78,9 +101,16 @@ public class PinInputView : MonoBehaviour
         }
 
         var back = OnboardingUtil.EnsureButton(transform.Find(PathBack));
-        if (back != null) back.onClick.AddListener(() => AppRouter.ins.ShowScreen(AppRouter.Screen.ParentInfo));
+        if (back != null) back.onClick.AddListener(OnBack);
 
         UpdateIndicators();
+    }
+
+    private void OnBack()
+    {
+        // 검증 팝업이면 닫기만, 온보딩이면 이전(ParentInfo) 단계로.
+        if (_verifyMode) { _onClose?.Invoke(); return; }
+        AppRouter.ins.ShowScreen(AppRouter.Screen.ParentInfo);
     }
 
     private void Append(string d)
@@ -121,7 +151,30 @@ public class PinInputView : MonoBehaviour
 
     private void Complete()
     {
+        if (_verifyMode)
+        {
+            // 보호자 모드 진입 검증 — 맞으면 콜백, 틀리면 안내 변경 + 입력 초기화(재시도).
+            if (UserMng.ins.VerifyGuardianPin(_pin.ToString()))
+            {
+                _onVerified?.Invoke();
+            }
+            else
+            {
+                if (_subtitleText != null) _subtitleText.text = WrongPinText;
+                ResetInput();
+            }
+            return;
+        }
+
+        // 온보딩: 입력한 PIN을 보호자 PIN으로 저장 후 아이 정보 화면으로.
         UserMng.ins.SetPin(_pin.ToString());
         AppRouter.ins.ShowScreen(AppRouter.Screen.AddChild);
+    }
+
+    /// <summary>입력을 비우고 인디케이터를 초기화(검증 실패 후 재입력).</summary>
+    private void ResetInput()
+    {
+        _pin.Clear();
+        UpdateIndicators();
     }
 }

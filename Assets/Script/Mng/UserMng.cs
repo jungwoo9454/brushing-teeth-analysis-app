@@ -223,10 +223,20 @@ public class UserMng : Singleton<UserMng>
     /// <summary>현재 보호자 모드인지.</summary>
     public bool IsGuardian => currentMode == AppMode.Guardian;
 
-    /// <summary>PIN이 일치하면 보호자 모드로 전환하고 true 반환. 불일치/PIN 미설정이면 false.</summary>
+    /// <summary>보호자 모드 기본 PIN — PIN 미설정(온보딩 건너뜀 등) 시 이 값으로 검증한다.</summary>
+    public const string DefaultGuardianPin = "0000";
+
+    /// <summary>검증에 쓰는 실제 PIN — 저장된 PIN이 있으면 그것, 없으면 기본 0000.</summary>
+    private string EffectiveGuardianPin
+        => string.IsNullOrEmpty(Profile.guardianPin) ? DefaultGuardianPin : Profile.guardianPin;
+
+    /// <summary>입력 PIN이 보호자 PIN(미설정 시 기본 0000)과 일치하는지. (모드 전환은 하지 않음)</summary>
+    public bool VerifyGuardianPin(string pin) => pin == EffectiveGuardianPin;
+
+    /// <summary>PIN이 일치하면 보호자 모드로 전환하고 true 반환(미설정 시 기본 0000과 대조). 불일치면 false.</summary>
     public bool TryEnterGuardianMode(string pin)
     {
-        if (string.IsNullOrEmpty(Profile.guardianPin) || pin != Profile.guardianPin) return false;
+        if (!VerifyGuardianPin(pin)) return false;
         SetMode(AppMode.Guardian);
         return true;
     }
