@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -73,6 +75,31 @@ public class UserMng : Singleton<UserMng>
         profile = string.IsNullOrEmpty(json)
             ? new UserProfile()
             : (JsonUtility.FromJson<UserProfile>(json) ?? new UserProfile());
+
+        MigrateChildren();
+    }
+
+    /// <summary>구버전 단일 아이 필드를 children 목록으로 1회 이관하고, 활성 아이를 보정한다.</summary>
+    private void MigrateChildren()
+    {
+        if (profile.children == null) profile.children = new List<ChildProfile>();
+
+        // 과거 단일 아이(childName 등) → children[0]으로 이관 후 비운다.
+        if (profile.children.Count == 0 && !string.IsNullOrEmpty(profile.childName))
+        {
+            var c = new ChildProfile(NewChildId(), profile.childName, profile.childAge, profile.childGender);
+            profile.children.Add(c);
+            profile.activeChildId = c.id;
+            profile.childName = ""; profile.childAge = 0; profile.childGender = "";
+            Save();
+        }
+
+        // 활성 아이 id가 비었거나 유효하지 않으면 첫 아이로 보정.
+        if (profile.children.Count > 0 &&
+            !profile.children.Exists(c => c.id == profile.activeChildId))
+        {
+            profile.activeChildId = profile.children[0].id;
+        }
     }
 
     /// <summary>현재 프로필을 DataMng에 저장한다(디스크 반영은 DataMng.Flush 구현에 따름).</summary>
@@ -128,18 +155,55 @@ public class UserMng : Singleton<UserMng>
         Profile.guardianPin = pin ?? ""; Save();
     }
 
-    /// <summary>아이 정보 저장.</summary>
-    public void SetChild(string name, int age, string gender)
+    // ─────────────────────────────────────────────────────────────
+    // 아이 프로필(여러 명) — 한 계정 공유, 아이별로 보상(스티커) 관리
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>등록된 아이 프로필 목록(읽기 전용).</summary>
+    public IReadOnlyList<ChildProfile> Children => Profile.children;
+
+    /// <summary>현재 활성 아이 프로필. 없으면 null. (activeChildId가 가리키는 아이, 없으면 첫 아이)</summary>
+    public ChildProfile ActiveChild
     {
-        Profile.childName = name ?? ""; Profile.childAge = age; Profile.childGender = gender ?? "";
+        get
+        {
+            var list = Profile.children;
+            if (list == null || list.Count == 0) return null;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i].id == profile.activeChildId) return list[i];
+            return list[0];
+        }
+    }
+
+    /// <summary>아이 프로필을 추가하고(첫 아이면 활성으로 지정) 그 프로필을 반환한다.</summary>
+    public ChildProfile AddChild(string name, int age, string gender)
+    {
+        var child = new ChildProfile(NewChildId(), name ?? "", age, gender ?? "");
+        Profile.children.Add(child);
+        if (string.IsNullOrEmpty(profile.activeChildId)) profile.activeChildId = child.id;
+        Save(); PublishChanged();
+        return child;
+    }
+
+    /// <summary>활성 아이를 바꾼다(프로필 선택). 존재하는 id일 때만 적용.</summary>
+    public void SetActiveChild(string childId)
+    {
+        if (string.IsNullOrEmpty(childId)) return;
+        if (!Profile.children.Exists(c => c.id == childId)) return;
+        profile.activeChildId = childId;
         Save(); PublishChanged();
     }
 
-    /// <summary>온보딩 완료 처리 — 표시 이름을 아이 이름으로 맞추고 저장. 다음 실행부터 메인으로 바로 시작.</summary>
+    /// <summary>로컬 고유 아이 id 생성(백엔드 없는 단계의 로컬 키 — 시각+순번).</summary>
+    private string NewChildId()
+        => "c" + DateTimeOffset.Now.ToUnixTimeMilliseconds() + "_" + (Profile.children?.Count ?? 0);
+
+    /// <summary>온보딩 완료 처리 — 표시 이름을 활성 아이 이름으로 맞추고 저장. 다음 실행부터 메인으로 바로 시작.</summary>
     public void CompleteOnboarding()
     {
         Profile.onboardingComplete = true;
-        if (!string.IsNullOrEmpty(Profile.childName)) Profile.userName = Profile.childName;
+        var active = ActiveChild;
+        if (active != null && !string.IsNullOrEmpty(active.name)) Profile.userName = active.name;
         Save(); PublishChanged();
     }
 

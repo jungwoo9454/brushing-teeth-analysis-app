@@ -95,7 +95,7 @@ public class AddChildView : MonoBehaviour
 
         int.TryParse(_ageInput != null ? _ageInput.text.Trim() : "", out int age);
 
-        UserMng.ins.SetChild(name, age, _selected.value);
+        UserMng.ins.AddChild(name, age, _selected.value);   // 아이 프로필 추가(첫 아이는 자동 활성)
         UserMng.ins.CompleteOnboarding();
         AppRouter.ins.ShowScreen(AppRouter.Screen.MainMenu);
     }
