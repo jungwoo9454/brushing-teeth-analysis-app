@@ -43,6 +43,12 @@ public class MainMenuView : MonoBehaviour
     [SerializeField] private TMP_Text alertZoneText;   // Teeth location (부족 구역명)
     [SerializeField] private TMP_Text alertReportText; // report (상태 메시지)
 
+    [Header("모드별 패널 (비우면 경로로 자동 탐색)")]
+    [Tooltip("아이 모드에서 표시 — 양치 시작 패널.")]
+    [SerializeField] private GameObject brushingStartPanel;
+    [Tooltip("보호자 모드에서 표시 — 아이 목록(가로 스크롤).")]
+    [SerializeField] private GameObject childListPanel;
+
     // 루트(Mainmenu) 기준 상대 경로
     private const string PathToday    = "RealSpace/Top/Profile/TextInfo/Today";
     private const string PathHello    = "RealSpace/Top/Profile/TextInfo/hello ment";
@@ -55,6 +61,13 @@ public class MainMenuView : MonoBehaviour
     private const string PathAlertBadge  = "RealSpace/Alert report/Amount Arrow";
     private const string PathAlertZone   = "RealSpace/Alert report/TextArea/Teeth location";
     private const string PathAlertReport = "RealSpace/Alert report/TextArea/report";
+
+    private const string PathBrushingPanel    = "RealSpace/Brushing start pannel";
+    private const string PathChildList        = "RealSpace/ChildList";
+    private const string PathChildSlotContent = "RealSpace/ChildList/Viewport/Content";
+    private const string PathChildSlotTemplate = PathChildSlotContent + "/Child slot";
+    private const string ChildSlotNamePath = "Text (TMP) (1)";   // 이름
+    private const string ChildSlotAgePath  = "Text (TMP)";       // 나이
 
     // Todo 항목 내부 자식 경로
     private const string ChildChecked  = "Checked";
@@ -78,6 +91,12 @@ public class MainMenuView : MonoBehaviour
     private Color _alertBadgeColor;
 
     private bool _captured;
+
+    // 보호자 모드 아이 목록(가로 슬롯) 런타임 상태.
+    private Transform _childSlotContent;
+    private Transform _childSlotTemplate;
+    private Color _childSlotNormalColor = Color.white;
+    private readonly List<GameObject> _childSlots = new List<GameObject>();
 
     private void Awake()
     {
@@ -118,6 +137,25 @@ public class MainMenuView : MonoBehaviour
         }
         if (alertZoneText == null) alertZoneText = FindTMP(PathAlertZone);
         if (alertReportText == null) alertReportText = FindTMP(PathAlertReport);
+
+        if (brushingStartPanel == null)
+        {
+            var t = transform.Find(PathBrushingPanel);
+            if (t != null) brushingStartPanel = t.gameObject;
+        }
+        if (childListPanel == null)
+        {
+            var t = transform.Find(PathChildList);
+            if (t != null) childListPanel = t.gameObject;
+        }
+        _childSlotContent = transform.Find(PathChildSlotContent);
+        _childSlotTemplate = transform.Find(PathChildSlotTemplate);
+        if (_childSlotTemplate != null)
+        {
+            var img = _childSlotTemplate.GetComponent<Image>();
+            if (img != null) _childSlotNormalColor = img.color;
+            _childSlotTemplate.gameObject.SetActive(false);   // 복제용 프로토타입 — 숨긴다.
+        }
     }
 
     private TMP_Text FindTMP(string path)
@@ -146,12 +184,77 @@ public class MainMenuView : MonoBehaviour
     private void Refresh()
     {
         var now = DateTime.Now;
+        ApplyMode();           // 모드별 패널(양치 시작 ↔ 아이 목록) 토글.
         RefreshProfile(now);
 
-        var records = LoadRecords();
+        var records = LoadRecords();   // 활성 아이 기준 — SubPannels/Alert가 선택된 아이 데이터를 표시.
         RefreshTodo(records, now);
         RefreshScore(records, now);
         RefreshAlert(records, now);
+    }
+
+    // ── 모드별 구성 (아이 / 보호자) ───────────────────────────────
+
+    /// <summary>
+    /// 보호자 모드: 양치 시작 패널을 끄고 아이 목록을 켜 아이들을 보여준다(클릭으로 아이 전환).
+    /// 아이 모드: 아이 목록을 끄고 양치 시작 패널을 켠다(기존 메인 메뉴).
+    /// 하단 SubPannels/Alert report는 두 모드 모두 '선택된 아이' 데이터를 그대로 표시한다.
+    /// </summary>
+    private void ApplyMode()
+    {
+        bool guardian = UserMng.ins != null && UserMng.ins.IsGuardian;
+        if (brushingStartPanel != null) brushingStartPanel.SetActive(!guardian);
+        if (childListPanel != null) childListPanel.SetActive(guardian);
+        if (guardian) BuildChildList();
+    }
+
+    /// <summary>보호자 모드 아이 목록 — 등록된 아이 수만큼 'Child slot'을 복제, 활성 아이 강조, 클릭 시 아이 전환.</summary>
+    private void BuildChildList()
+    {
+        if (_childSlotContent == null || _childSlotTemplate == null) return;
+
+        foreach (var go in _childSlots) if (go != null) Destroy(go);
+        _childSlots.Clear();
+
+        var children = UserMng.ins != null ? UserMng.ins.Children : null;
+        var active = UserMng.ins != null ? UserMng.ins.ActiveChild : null;
+        if (children == null) return;
+
+        for (int i = 0; i < children.Count; i++)
+        {
+            var child = children[i];
+            var go = Instantiate(_childSlotTemplate.gameObject, _childSlotContent);
+            go.SetActive(true);
+            go.name = "Child slot_" + child.id;
+            _childSlots.Add(go);
+
+            var nameText = go.transform.Find(ChildSlotNamePath)?.GetComponent<TMP_Text>();
+            if (nameText != null) nameText.text = child.name;
+
+            var ageText = go.transform.Find(ChildSlotAgePath)?.GetComponent<TMP_Text>();
+            if (ageText != null) ageText.text = child.age > 0 ? $"{child.age}세" : "";
+
+            bool isActive = active != null && child.id == active.id;
+            var slotImg = go.GetComponent<Image>();
+            if (slotImg != null)
+            {
+                var c = _childSlotNormalColor;
+                if (!isActive) c.a *= 0.45f;
+                slotImg.color = c;
+            }
+
+            string id = child.id;
+            var btn = OnboardingUtil.EnsureButton(go.transform);
+            if (btn != null) btn.onClick.AddListener(() => OnSelectChild(id));
+        }
+    }
+
+    // 보호자 모드에서 아이 전환 — 활성 아이만 바꾸고(모드는 보호자 유지) 화면을 그 아이 데이터로 갱신.
+    private void OnSelectChild(string childId)
+    {
+        if (UserMng.ins == null) return;
+        UserMng.ins.SetActiveChild(childId);
+        Refresh();
     }
 
     private void RefreshProfile(DateTime now)
