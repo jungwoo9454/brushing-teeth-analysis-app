@@ -19,6 +19,29 @@ public static class BrushingStats
     public static DateTime LocalTimeOf(BrushingRecord r)
         => DateTimeOffset.FromUnixTimeSeconds(r.recordedAtUnix).ToLocalTime().DateTime;
 
+    /// <summary>
+    /// 한 아이(childId)의 기록만 거른다 — 아이별 리포트용.
+    /// · childId가 비어 있으면(아이 미지정) 필터 없이 전체를 반환한다.
+    /// · childId 필드가 빈 과거 기록은 fallbackChildId(보통 '첫 아이')의 것으로 간주한다
+    ///   — 기존 데모/더미 데이터가 첫 아이에게 귀속되어 사라지지 않도록.
+    /// </summary>
+    public static List<BrushingRecord> ForChild(IList<BrushingRecord> records, string childId, string fallbackChildId = null)
+    {
+        var result = new List<BrushingRecord>();
+        if (records == null) return result;
+
+        bool noFilter = string.IsNullOrEmpty(childId);
+        foreach (var r in records)
+        {
+            if (r == null) continue;
+            if (noFilter) { result.Add(r); continue; }
+
+            bool legacyOwned = string.IsNullOrEmpty(r.childId) && childId == fallbackChildId;
+            if (r.childId == childId || legacyOwned) result.Add(r);
+        }
+        return result;
+    }
+
     /// <summary>[fromInclusive, toExclusive) 구간 기록들의 평균 점수. 건수는 count로 반환(0이면 평균 0).</summary>
     public static float Average(IList<BrushingRecord> records, DateTime fromInclusive, DateTime toExclusive, out int count)
     {

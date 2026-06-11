@@ -51,10 +51,21 @@ public class BrushingDetailReportView : MonoBehaviour
     private const string PathLRText  = "RealSpace/Coordinate report/Progress/Text (TMP)";
     private const string PathUBText  = "RealSpace/Coordinate report/Progress/Text (TMP) (1)";
 
+    // 아이 선택 슬롯 — 등록된 아이 수만큼 'Child slot'을 복제해 클릭으로 그 아이 리포트를 본다.
+    private const string PathSlotContent  = "RealSpace/ChildList/Viewport/Content";
+    private const string PathSlotTemplate = PathSlotContent + "/Child slot";
+    private const string SlotNamePath = "Text (TMP) (1)";   // 이름
+    private const string SlotAgePath  = "Text (TMP)";       // 나이
+
     private DateTime _from, _to;
     private bool _hasPeriod;
     private GameObject _calendarInstance;
     private bool _calendarOpen;   // 달력을 띄우려고 리포트를 잠시 끈 상태인지
+
+    private Transform _slotContent;
+    private Transform _slotTemplate;
+    private Color _slotNormalColor = Color.white;
+    private readonly List<GameObject> _childSlots = new List<GameObject>();
 
     private void Awake()
     {
@@ -97,6 +108,18 @@ public class BrushingDetailReportView : MonoBehaviour
         if (balanceStateText == null) balanceStateText = FindComp<TMP_Text>(PathState);
         if (lrRatioText == null) lrRatioText = FindComp<TMP_Text>(PathLRText);
         if (ubRatioText == null) ubRatioText = FindComp<TMP_Text>(PathUBText);
+
+        if (_slotContent == null) _slotContent = transform.Find(PathSlotContent);
+        if (_slotTemplate == null)
+        {
+            _slotTemplate = transform.Find(PathSlotTemplate);
+            if (_slotTemplate != null)
+            {
+                var img = _slotTemplate.GetComponent<Image>();
+                if (img != null) _slotNormalColor = img.color;
+                _slotTemplate.gameObject.SetActive(false);   // 복제용 프로토타입 — 숨긴다.
+            }
+        }
     }
 
     private T FindComp<T>(string path) where T : Component
@@ -198,6 +221,58 @@ public class BrushingDetailReportView : MonoBehaviour
         UpdatePointer(rep);
         UpdateBalanceState(rep);
         UpdateRatioTexts(rep);
+        BuildChildSlots();
+    }
+
+    // ── 아이 선택 슬롯 ────────────────────────────────────────────
+
+    /// <summary>등록된 아이 수만큼 'Child slot'을 복제해 이름·나이를 넣고, 활성 아이를 강조한다. 클릭 → 그 아이 리포트.</summary>
+    private void BuildChildSlots()
+    {
+        if (_slotContent == null || _slotTemplate == null) return;
+
+        foreach (var go in _childSlots) if (go != null) Destroy(go);
+        _childSlots.Clear();
+
+        var children = UserMng.ins != null ? UserMng.ins.Children : null;
+        var active = UserMng.ins != null ? UserMng.ins.ActiveChild : null;
+        if (children == null) return;
+
+        for (int i = 0; i < children.Count; i++)
+        {
+            var child = children[i];
+            var go = Instantiate(_slotTemplate.gameObject, _slotContent);
+            go.SetActive(true);
+            go.name = "Child slot_" + child.id;
+            _childSlots.Add(go);
+
+            var nameText = go.transform.Find(SlotNamePath)?.GetComponent<TMP_Text>();
+            if (nameText != null) nameText.text = child.name;
+
+            var ageText = go.transform.Find(SlotAgePath)?.GetComponent<TMP_Text>();
+            if (ageText != null) ageText.text = child.age > 0 ? $"{child.age}세" : "";
+
+            // 활성 아이 슬롯은 원래 색, 나머지는 흐리게 — 지금 보는 아이를 구분.
+            bool isActive = active != null && child.id == active.id;
+            var slotImg = go.GetComponent<Image>();
+            if (slotImg != null)
+            {
+                var c = _slotNormalColor;
+                if (!isActive) c.a *= 0.45f;
+                slotImg.color = c;
+            }
+
+            string id = child.id;   // 클로저 캡처용 지역 복사.
+            var btn = OnboardingUtil.EnsureButton(go.transform);
+            if (btn != null) btn.onClick.AddListener(() => OnSelectChildSlot(id));
+        }
+    }
+
+    private void OnSelectChildSlot(string childId)
+    {
+        if (UserMng.ins == null) return;
+        UserMng.ins.SetActiveChild(childId);
+        Refresh();   // 활성 아이 변경 → 그 아이 기록으로 리포트 재구성 + 슬롯 강조 갱신.
     }
 
     /// <summary>LR/UB Progress 위 텍스트에 좌우·상하 비율을 정수 %(합 100)로 적는다.</summary>
@@ -241,9 +316,10 @@ public class BrushingDetailReportView : MonoBehaviour
         balanceStateText.text = (lrDev < 0.1f && udDev < 0.1f) ? "균형 좋음" : "불균형";
     }
 
+    // 활성 아이의 기록만 — 아이별 리포트. (childId 없는 과거 기록은 첫 아이 것으로 본다)
     private List<BrushingRecord> LoadRecords()
     {
-        try { return new JsonBrushingRecordRepository().LoadAll(); }
+        try { return ChildRecords.ActiveChildRecords(new JsonBrushingRecordRepository().LoadAll()); }
         catch { return new List<BrushingRecord>(); }
     }
 

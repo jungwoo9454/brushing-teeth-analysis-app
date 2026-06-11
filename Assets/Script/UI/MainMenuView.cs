@@ -167,9 +167,10 @@ public class MainMenuView : MonoBehaviour
         }
     }
 
+    // 활성 아이의 기록만 — 홈 화면 점수/체크리스트/알림도 현재 아이 기준.
     private List<BrushingRecord> LoadRecords()
     {
-        try { return new JsonBrushingRecordRepository().LoadAll(); }
+        try { return ChildRecords.ActiveChildRecords(new JsonBrushingRecordRepository().LoadAll()); }
         catch { return new List<BrushingRecord>(); }
     }
 

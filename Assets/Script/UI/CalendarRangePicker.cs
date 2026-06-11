@@ -270,7 +270,7 @@ public class CalendarRangePicker : MonoBehaviour
         if (!showBrushingState) return;
 
         List<BrushingRecord> records;
-        try { records = new JsonBrushingRecordRepository().LoadAll(); }
+        try { records = ChildRecords.ActiveChildRecords(new JsonBrushingRecordRepository().LoadAll()); }
         catch { return; }   // 저장소 없음/손상 → 표시 없이 진행(앱 동작엔 영향 없음).
         if (records == null) return;
 
