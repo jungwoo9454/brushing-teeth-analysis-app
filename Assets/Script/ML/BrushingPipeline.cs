@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;  // RawImage — 카메라 미리보기 표시용
 
@@ -106,23 +107,9 @@ public class BrushingPipeline : MonoBehaviour
 
     private void Start()
     {
-        StartCamera();
-
-        // 미리보기 RawImage가 연결돼 있으면 WebCamTexture를 직접 바인딩.
-        // WebCamTexture는 Unity가 매 프레임 갱신하므로 한 번만 할당해두면 RawImage가 자동으로 최신 프레임을 그린다.
-        // RectTransform 비율 fit은 카메라 첫 프레임을 받은 직후 Update에서 한 번만 수행(현재 webcam.width/height는 placeholder).
-        if (previewImage != null && webcam != null)
-            previewImage.texture = webcam;
-
-        // FaceProvider가 MediaPipeFaceProvider인 경우, BrushingPipeline의 webcam을 입력 텍스처로 주입.
-        // (DummyFaceProvider 등 다른 구현체에는 영향 없음 — 그쪽은 외부 입력이 필요 없는 stub.)
-        // YOLO는 PrepareSource()에서 전면 카메라를 unmirror하므로, MediaPipe에도 같은
-        // unmirror 여부를 알려 두 모델이 동일한 좌표계를 보게 한다.
-        if (faceProvider is MediaPipeFaceProvider mpProvider && webcam != null)
-        {
-            bool needUnmirror = unmirrorFrontCamera && IsCurrentDeviceFrontFacing();
-            mpProvider.SetInputTexture(webcam, needUnmirror);
-        }
+        // 카메라 시작은 코루틴으로 — 모바일(iOS 등)은 권한 승인·디바이스 열거가 비동기라
+        // 동기로 열면 WebCamTexture.devices가 비어 카메라가 안 뜬다.
+        StartCoroutine(StartCameraRoutine());
     }
 
     private void OnDestroy()
@@ -326,23 +313,51 @@ public class BrushingPipeline : MonoBehaviour
         rt.sizeDelta = new Vector2(w, h);
     }
 
-    /// <summary>WebCamTexture 생성·Play. 디바이스가 없으면 에러 로그.</summary>
-    private void StartCamera()
+    /// <summary>
+    /// 카메라 권한 요청·대기 → 디바이스 열거 → (전면 우선) WebCamTexture 생성·Play → 미리보기/FaceProvider 바인딩.
+    /// 모바일은 권한 승인과 디바이스 열거가 비동기라 코루틴으로 한 프레임 이상 기다린다.
+    /// </summary>
+    private IEnumerator StartCameraRoutine()
     {
+        // 1) 카메라 권한 — 없으면 요청하고 승인까지 대기.
+        if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+            yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
+
+        if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+        {
+            Debug.LogError("[BrushingPipeline] 카메라 권한이 거부되어 카메라를 시작할 수 없다.");
+            yield break;
+        }
+
+        // 2) 권한 직후에도 디바이스 목록이 곧장 안 채워질 수 있다(특히 iOS) — 채워질 때까지 잠깐 대기.
+        float deadline = Time.realtimeSinceStartup + 3f;
+        while (WebCamTexture.devices.Length == 0 && Time.realtimeSinceStartup < deadline)
+            yield return null;
+
         var devices = WebCamTexture.devices;
         if (devices.Length == 0)
         {
             Debug.LogError("[BrushingPipeline] 카메라 장치를 찾을 수 없다.");
-            return;
+            yield break;
         }
 
-        // 사용할 디바이스 결정 (전면 우선). 빈 문자열이면 기본(첫 번째) 카메라.
+        // 3) 사용할 디바이스 결정(모바일은 전면 우선). 빈 문자열이면 기본(첫 번째) 카메라.
         string deviceName = ResolveCameraDeviceName(devices);
-
         webcam = string.IsNullOrEmpty(deviceName)
             ? new WebCamTexture(requestedWidth, requestedHeight, requestedFps)
             : new WebCamTexture(deviceName, requestedWidth, requestedHeight, requestedFps);
         webcam.Play();
+
+        // 4) 미리보기 RawImage 바인딩(매 프레임 자동 갱신) + FaceProvider에 입력 텍스처 주입.
+        if (previewImage != null)
+            previewImage.texture = webcam;
+
+        if (faceProvider is MediaPipeFaceProvider mpProvider)
+        {
+            // 전면 카메라는 보통 좌우 반전 — 학습 분포와 맞추기 위해 unmirror 여부를 알려준다.
+            bool needUnmirror = unmirrorFrontCamera && IsCurrentDeviceFrontFacing();
+            mpProvider.SetInputTexture(webcam, needUnmirror);
+        }
     }
 
     /// <summary>
