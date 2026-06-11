@@ -25,6 +25,12 @@ public class AppRouter : Singleton<AppRouter>
         None,
         MainMenu,
         BrushingFinish,
+        // ── 온보딩(회원가입) 흐름 ──
+        InitMenu,      // 시작: Create Account → Clause
+        Clause,        // 약관 동의 → ParentInfo
+        ParentInfo,    // 보호자 이름·호칭 → PinInput
+        PinInput,      // 보호자 PIN 설정 → AddChild
+        AddChild,      // 아이 정보 → MainMenu(온보딩 완료)
     }
 
     [Header("씬 이름 (Build Settings에 등록돼 있어야 함)")]
@@ -44,9 +50,22 @@ public class AppRouter : Singleton<AppRouter>
     [SerializeField] private GameObject settingPrefab;
     // Home 탭은 별도 프리팹 없이 mainMenuPrefab을 그대로 쓴다. Buddy(바디) 탭은 사용하지 않는다.
 
+    [Header("온보딩 화면 프리팹 (Assets/Prefabs/UI/)")]
+    [SerializeField] private GameObject initMenuPrefab;   // InitMenu
+    [SerializeField] private GameObject clausePrefab;     // Clause
+    [SerializeField] private GameObject parentInfoPrefab; // ParentInfo
+    [SerializeField] private GameObject pinInputPrefab;   // PinInput
+    [SerializeField] private GameObject addChildPrefab;   // AddChild
+
     [Header("동작")]
-    [Tooltip("앱 최초 시작 시(메인 씬) 자동으로 메뉴 화면을 띄운다.")]
+    [Tooltip("앱 최초 시작 시(메인 씬) 자동으로 시작 화면을 띄운다.")]
     [SerializeField] private bool showMenuOnStart = true;
+
+    [Header("디버그")]
+    [Tooltip("켜면 온보딩(회원가입)을 건너뛰고 바로 메인 메뉴로 시작한다 — 개발 편의용.")]
+    [SerializeField] private bool skipOnboarding = false;
+    [Tooltip("켜면 온보딩 완료 여부와 무관하게 항상 온보딩부터 시작한다 — 온보딩 플로우 반복 테스트용. (skip이 우선)")]
+    [SerializeField] private bool forceOnboarding = false;
 
     // 다음 메인 씬 로드 시 띄울 화면. 씬 로드 콜백에서 읽고 소비한다.
     private Screen pendingScreen = Screen.None;
@@ -105,13 +124,21 @@ public class AppRouter : Singleton<AppRouter>
 
     private void Start()
     {
-        // 앱이 메인 씬에서 시작된 경우, 첫 메뉴를 띄운다.
+        // 앱이 메인 씬에서 시작된 경우, 첫 화면을 띄운다(온보딩 미완료면 InitMenu).
         // (이미 pendingScreen이 잡혀 있으면 그쪽이 우선 — 씬 로드 콜백이 처리.)
         if (showMenuOnStart && pendingScreen == Screen.None &&
             SceneManager.GetActiveScene().name == mainSceneName)
         {
-            ShowScreen(Screen.MainMenu);
+            ShowScreen(StartScreen());
         }
+    }
+
+    /// <summary>앱 시작/메인 진입 시 띄울 첫 화면 — 온보딩 미완료면 InitMenu, 완료(또는 디버그 skip)면 MainMenu.</summary>
+    private Screen StartScreen()
+    {
+        if (skipOnboarding) return Screen.MainMenu;       // 디버그: 온보딩 건너뛰기(우선)
+        if (forceOnboarding) return Screen.InitMenu;      // 디버그: 항상 온보딩부터(반복 테스트)
+        return UserMng.ins.OnboardingComplete ? Screen.MainMenu : Screen.InitMenu;
     }
 
     private void OnDestroy()
@@ -181,7 +208,7 @@ public class AppRouter : Singleton<AppRouter>
         if (pendingScreen != Screen.None)
             ConsumePending();
         else if (showMenuOnStart)
-            ShowScreen(Screen.MainMenu);
+            ShowScreen(StartScreen());
     }
 
     private void ConsumePending()
@@ -228,6 +255,11 @@ public class AppRouter : Singleton<AppRouter>
         {
             case Screen.MainMenu:       return mainMenuPrefab;
             case Screen.BrushingFinish: return brushingFinishPrefab;
+            case Screen.InitMenu:       return initMenuPrefab;
+            case Screen.Clause:         return clausePrefab;
+            case Screen.ParentInfo:     return parentInfoPrefab;
+            case Screen.PinInput:       return pinInputPrefab;
+            case Screen.AddChild:       return addChildPrefab;
             default:                    return null;
         }
     }

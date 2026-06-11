@@ -105,8 +105,94 @@ public class UserMng : Singleton<UserMng>
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 온보딩(회원가입) 설정 헬퍼 — 각 단계 화면이 호출. 즉시 저장한다.
+    // (Profile getter는 live 객체라 필드를 직접 바꾼 뒤 Save()해야 저장된다.)
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>약관 동의 상태 저장.</summary>
+    public void SetTermsAgreed(bool agreed)
+    {
+        Profile.termsAgreed = agreed; Save();
+    }
+
+    /// <summary>보호자 이름·호칭 저장.</summary>
+    public void SetGuardian(string name, string prefix)
+    {
+        Profile.guardianName = name ?? ""; Profile.guardianPrefix = prefix ?? "";
+        Save(); PublishChanged();
+    }
+
+    /// <summary>보호자 모드 PIN(4자리) 저장.</summary>
+    public void SetPin(string pin)
+    {
+        Profile.guardianPin = pin ?? ""; Save();
+    }
+
+    /// <summary>아이 정보 저장.</summary>
+    public void SetChild(string name, int age, string gender)
+    {
+        Profile.childName = name ?? ""; Profile.childAge = age; Profile.childGender = gender ?? "";
+        Save(); PublishChanged();
+    }
+
+    /// <summary>온보딩 완료 처리 — 표시 이름을 아이 이름으로 맞추고 저장. 다음 실행부터 메인으로 바로 시작.</summary>
+    public void CompleteOnboarding()
+    {
+        Profile.onboardingComplete = true;
+        if (!string.IsNullOrEmpty(Profile.childName)) Profile.userName = Profile.childName;
+        Save(); PublishChanged();
+    }
+
+    /// <summary>온보딩을 이미 마쳤는지(시작 화면 분기에 사용).</summary>
+    public bool OnboardingComplete => Profile.onboardingComplete;
+
+    // ─────────────────────────────────────────────────────────────
+    // 앱 모드(보호자/아이) — 세션 상태(저장 안 함). 기본은 아이 모드.
+    // 보호자 모드 진입은 PIN 대조로만 허용한다(아이가 임의로 못 바꾸게).
+    // ─────────────────────────────────────────────────────────────
+
+    private AppMode currentMode = AppMode.Child;
+
+    /// <summary>현재 앱 모드(기본 아이).</summary>
+    public AppMode CurrentMode => currentMode;
+
+    /// <summary>현재 보호자 모드인지.</summary>
+    public bool IsGuardian => currentMode == AppMode.Guardian;
+
+    /// <summary>PIN이 일치하면 보호자 모드로 전환하고 true 반환. 불일치/PIN 미설정이면 false.</summary>
+    public bool TryEnterGuardianMode(string pin)
+    {
+        if (string.IsNullOrEmpty(Profile.guardianPin) || pin != Profile.guardianPin) return false;
+        SetMode(AppMode.Guardian);
+        return true;
+    }
+
+    /// <summary>아이 모드로 되돌린다(보호자 모드 종료).</summary>
+    public void ExitToChildMode() => SetMode(AppMode.Child);
+
+    private void SetMode(AppMode mode)
+    {
+        if (currentMode == mode) return;
+        currentMode = mode;
+        EventBus.Publish(new AppModeChangedEvent { mode = mode });
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // 내부 헬퍼
     // ─────────────────────────────────────────────────────────────
 
     private void PublishChanged() => EventBus.Publish(new UserProfileChangedEvent { profile = profile });
+}
+
+/// <summary>앱 사용 모드 — 아이(기본)와 보호자. 보호자 모드는 PIN으로만 진입한다.</summary>
+public enum AppMode
+{
+    Child,
+    Guardian,
+}
+
+/// <summary>앱 모드가 바뀌었을 때 EventBus로 발행되는 이벤트(설정/UI가 구독해 표시를 바꿀 수 있다).</summary>
+public struct AppModeChangedEvent
+{
+    public AppMode mode;
 }
