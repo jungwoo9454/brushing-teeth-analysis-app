@@ -2,6 +2,7 @@ using System;
 
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// 양치 결과(BrushingFinish) 화면에 한 세션 결과를 바인딩하는 뷰.
@@ -31,6 +32,22 @@ public class BrushingFinishView : MonoBehaviour
     [Tooltip("연속 양치일수 — Slot/day/Text (TMP)")]
     [SerializeField] private TMP_Text streakText;
 
+    private const string PathViewReport = "RealSpace/View report";
+    private const string PathHome       = "RealSpace/Home";
+
+    private void Awake()
+    {
+        // '리포트 보기' → 방금 양치한 세션 리포트(BrushingReport) 화면.
+        var viewReport = OnboardingUtil.EnsureButton(transform.Find(PathViewReport));
+        if (viewReport != null)
+            viewReport.onClick.AddListener(() => AppRouter.ins.ShowScreen(AppRouter.Screen.BrushingReport));
+
+        // 'Home' → 메인 메뉴.
+        var home = OnboardingUtil.EnsureButton(transform.Find(PathHome));
+        if (home != null)
+            home.onClick.AddListener(() => AppRouter.ins.ShowScreen(AppRouter.Screen.MainMenu));
+    }
+
     /// <summary>한 세션의 점수 결과를 화면 각 텍스트에 채운다. 참조가 비어 있는 항목은 건너뛴다.</summary>
     public void Bind(BrushingScoredEvent r)
     {
@@ -40,6 +57,10 @@ public class BrushingFinishView : MonoBehaviour
         if (messageLine2 != null)    messageLine2.text    = ZoneMessage(r.zoneSeconds, r.targetPerZoneSeconds);
         if (sessionInfoText != null) sessionInfoText.text = SessionInfo();
         if (streakText != null)      streakText.text      = $"{Mathf.Max(0, r.streakDays)}일 연속";
+
+        // 점수에 따라 캐릭터 표정(기쁨/평범/안좋음).
+        var character = GetComponentInChildren<BrushingFinishCharacter>(true);
+        if (character != null) character.ShowForScore(r.score);
     }
 
     /// <summary>제목 — "잘했어, {이름}!". 이름이 없으면 이름 없이 표시.</summary>
