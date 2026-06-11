@@ -8,9 +8,15 @@ using UnityEngine.UI;
 /// 바텀 탭(Home/Report/Buddy/Setting) 바. "Bottom Tab" 프리팹 루트에 붙인다.
 ///
 /// 역할:
-///   1) 4개 탭 버튼 클릭 → 해당 탭 화면으로 전환(기본: AppRouter.ShowTab).
+///   1) 탭 버튼 클릭 → 해당 탭 화면으로 전환(기본: AppRouter.ShowTab).
 ///   2) 활성 탭 시각화 — 활성 탭 버튼의 Image 스프라이트를 '활성화(파란)' 스프라이트로 교체하고,
 ///      나머지는 원래(일반) 스프라이트로 되돌린다.
+///
+/// 표시 탭은 앱 모드(<see cref="AppMode"/>)에 따라 달라진다(UserMng.CurrentMode):
+///   · 아이 모드   → 홈 · 버디 · 설정 (리포트 제외)
+///   · 보호자 모드 → 홈 · 리포트 · 설정 (버디 제외)
+/// 모드에 없는 탭 버튼은 숨겨진다(HorizontalLayoutGroup이 나머지를 재정렬). 모드가 바뀌면
+/// AppRouter가 현재 탭 화면을 다시 띄워(ShowTab) 새 모드의 탭 구성으로 갱신한다.
 ///
 /// 두 가지 화면 구조를 모두 지원한다:
 ///   A) 화면별 프리팹에 이 Bottom Tab을 포함시키는 구조(현재 프로젝트 방식):
@@ -46,12 +52,6 @@ public class BottomTabBar : MonoBehaviour
     [SerializeField] private Button reportButton;
     [SerializeField] private Button buddyButton;
     [SerializeField] private Button settingButton;
-
-    [Header("사용할 탭 (목록에 있는 탭만 클릭/전환 가능)")]
-    [Tooltip("여기 포함된 탭만 동작한다. 기본은 Home/Report/Setting — 즉 Buddy(바디)는 제외. " +
-             "제외된 탭의 버튼은 비활성(interactable=false)되고 클릭해도 전환되지 않는다.")]
-    [SerializeField]
-    private BottomTab[] enabledTabs = { BottomTab.Home, BottomTab.Report, BottomTab.Setting };
 
     [Header("동작")]
     [Tooltip("켜면 탭 클릭 시 AppRouter.ShowTab으로 화면 프리팹을 전환한다. 끄면 onTabSelected만 호출하고 이 바가 직접 활성 표시를 갱신한다.")]
@@ -122,19 +122,35 @@ public class BottomTabBar : MonoBehaviour
 
         if (IsEnabled(id))
         {
+            if (!button.gameObject.activeSelf) button.gameObject.SetActive(true);
+            button.interactable = true;
             button.onClick.AddListener(() => Select(id));
         }
         else
         {
-            // 사용하지 않는 탭(예: 바디)은 클릭 불가로 둔다. 아이콘은 일반 스프라이트 그대로 유지.
-            button.interactable = false;
+            // 현재 모드에서 빠지는 탭(아이=리포트, 보호자=버디)은 바에서 숨긴다.
+            // HorizontalLayoutGroup이 나머지 3칸을 다시 정렬한다.
+            button.gameObject.SetActive(false);
         }
     }
 
+    /// <summary>현재 앱 모드(아이/보호자)에 이 탭이 포함되는지.</summary>
     private bool IsEnabled(BottomTab tab)
     {
-        if (enabledTabs == null || enabledTabs.Length == 0) return true;
-        foreach (var t in enabledTabs)
+        var mode = UserMng.ins != null ? UserMng.ins.CurrentMode : AppMode.Child;
+        return IsTabEnabledForMode(tab, mode);
+    }
+
+    /// <summary>앱 모드별 탭 구성 — 아이: 홈·버디·설정 / 보호자: 홈·리포트·설정.</summary>
+    public static BottomTab[] TabsForMode(AppMode mode)
+        => mode == AppMode.Guardian
+            ? new[] { BottomTab.Home, BottomTab.Report, BottomTab.Setting }
+            : new[] { BottomTab.Home, BottomTab.Buddy, BottomTab.Setting };
+
+    /// <summary>해당 모드에서 이 탭이 보이는지.</summary>
+    public static bool IsTabEnabledForMode(BottomTab tab, AppMode mode)
+    {
+        foreach (var t in TabsForMode(mode))
             if (t == tab) return true;
         return false;
     }

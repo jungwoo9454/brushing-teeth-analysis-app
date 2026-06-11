@@ -234,6 +234,12 @@ public class UserMng : Singleton<UserMng>
     /// <summary>아이 모드로 되돌린다(보호자 모드 종료).</summary>
     public void ExitToChildMode() => SetMode(AppMode.Child);
 
+    /// <summary>
+    /// 앱 모드를 직접 지정한다(PIN 검증 없이). 설정 화면의 모드 전환 버튼처럼
+    /// 이미 화면 흐름상 허용된 곳에서 사용한다. 보안이 필요한 진입은 <see cref="TryEnterGuardianMode"/>를 쓸 것.
+    /// </summary>
+    public void SetAppMode(AppMode mode) => SetMode(mode);
+
     private void SetMode(AppMode mode)
     {
         if (currentMode == mode) return;

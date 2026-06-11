@@ -25,6 +25,7 @@ public class AppRouter : Singleton<AppRouter>
         None,
         MainMenu,
         BrushingFinish,
+        BrushingReport,   // 결과 화면의 '리포트 보기' → 방금 양치한 세션 리포트
         // ── 온보딩(회원가입) 흐름 ──
         InitMenu,      // 시작: Create Account → Clause
         Clause,        // 약관 동의 → ParentInfo
@@ -42,13 +43,17 @@ public class AppRouter : Singleton<AppRouter>
     [SerializeField] private GameObject mainMenuPrefab;
     [Tooltip("양치 결과(브러싱 피니쉬) 화면 프리팹(루트 Canvas).")]
     [SerializeField] private GameObject brushingFinishPrefab;
+    [Tooltip("브러싱 리포트(한 세션 상세) 화면 프리팹 — 결과 화면의 '리포트 보기'에서 띄운다.")]
+    [SerializeField] private GameObject brushingReportPrefab;
 
     [Header("바텀 탭 화면 프리팹 (Assets/Prefabs/UI/) — 각 탭이 가리키는 화면")]
     [Tooltip("Report 탭 화면 프리팹 (BrushingDetailReport).")]
     [SerializeField] private GameObject reportPrefab;
     [Tooltip("Setting 탭 화면 프리팹 (Setting).")]
     [SerializeField] private GameObject settingPrefab;
-    // Home 탭은 별도 프리팹 없이 mainMenuPrefab을 그대로 쓴다. Buddy(바디) 탭은 사용하지 않는다.
+    [Tooltip("Buddy(버디) 탭 화면 프리팹 (Buddy) — 아이 모드에서 사용.")]
+    [SerializeField] private GameObject buddyPrefab;
+    // Home 탭은 별도 프리팹 없이 mainMenuPrefab을 그대로 쓴다.
 
     [Header("온보딩 화면 프리팹 (Assets/Prefabs/UI/)")]
     [SerializeField] private GameObject initMenuPrefab;   // InitMenu
@@ -114,12 +119,27 @@ public class AppRouter : Singleton<AppRouter>
         EventBus.Subscribe<BrushingSessionCompletedEvent>(OnBrushingCompleted);
         // 점수 산출 결과 → 결과 화면에 주입할 수 있도록 캐시.
         EventBus.Subscribe<BrushingScoredEvent>(OnScored);
+        // 앱 모드(아이/보호자) 전환 → 탭 구성이 달라지므로 현재 탭 화면을 다시 띄워 갱신.
+        EventBus.Subscribe<AppModeChangedEvent>(OnAppModeChanged);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<BrushingSessionCompletedEvent>(OnBrushingCompleted);
         EventBus.Unsubscribe<BrushingScoredEvent>(OnScored);
+        EventBus.Unsubscribe<AppModeChangedEvent>(OnAppModeChanged);
+    }
+
+    // 모드가 바뀌면 탭 구성(아이=홈·버디·설정 / 보호자=홈·리포트·설정)이 달라진다.
+    // 현재 떠 있는 탭이 새 모드에서 사라지면 홈으로, 아니면 같은 탭을 다시 띄워 탭바를 새 구성으로 갱신.
+    private void OnAppModeChanged(AppModeChangedEvent e)
+    {
+        // 탭 화면이 떠 있는 메인 씬에서만 의미가 있다(양치 씬 등에서는 무시).
+        if (currentScreenInstance == null) return;
+        if (SceneManager.GetActiveScene().name != mainSceneName) return;
+
+        var tab = BottomTabBar.IsTabEnabledForMode(CurrentTab, e.mode) ? CurrentTab : BottomTab.Home;
+        ShowTab(tab);
     }
 
     private void Start()
@@ -241,11 +261,19 @@ public class AppRouter : Singleton<AppRouter>
         currentScreenInstance = Instantiate(prefab);
         currentScreenInstance.SetActive(true);
 
-        // 결과 화면이면 가장 최근 점수 결과를 주입한다.
-        if (screen == Screen.BrushingFinish && hasResult)
+        // 결과/리포트 화면이면 가장 최근 점수 결과를 주입한다(방금 양치한 세션).
+        if (hasResult)
         {
-            var view = currentScreenInstance.GetComponentInChildren<BrushingFinishView>(true);
-            if (view != null) view.Bind(lastResult);
+            if (screen == Screen.BrushingFinish)
+            {
+                var view = currentScreenInstance.GetComponentInChildren<BrushingFinishView>(true);
+                if (view != null) view.Bind(lastResult);
+            }
+            else if (screen == Screen.BrushingReport)
+            {
+                var view = currentScreenInstance.GetComponentInChildren<BrushingReportView>(true);
+                if (view != null) view.Bind(lastResult);
+            }
         }
     }
 
@@ -255,6 +283,7 @@ public class AppRouter : Singleton<AppRouter>
         {
             case Screen.MainMenu:       return mainMenuPrefab;
             case Screen.BrushingFinish: return brushingFinishPrefab;
+            case Screen.BrushingReport: return brushingReportPrefab;
             case Screen.InitMenu:       return initMenuPrefab;
             case Screen.Clause:         return clausePrefab;
             case Screen.ParentInfo:     return parentInfoPrefab;
@@ -301,8 +330,9 @@ public class AppRouter : Singleton<AppRouter>
         {
             case BottomTab.Home:    return mainMenuPrefab;   // 홈 = 메인 메뉴 화면
             case BottomTab.Report:  return reportPrefab;
+            case BottomTab.Buddy:   return buddyPrefab;
             case BottomTab.Setting: return settingPrefab;
-            default:                return null;             // Buddy(바디) 등 미사용 탭
+            default:                return null;
         }
     }
 }
