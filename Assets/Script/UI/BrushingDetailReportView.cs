@@ -34,6 +34,8 @@ public class BrushingDetailReportView : MonoBehaviour
     [SerializeField] private Image lrLeft, lrRight;    // LR Progress/Left, Right
     [SerializeField] private Image ubLeft, ubRight;    // UB Progress/Left(상), Right(하)
     [SerializeField] private TMP_Text balanceStateText;// Coordinate report/Top/State/Text (TMP)
+    [SerializeField] private TMP_Text lrRatioText;     // LR Progress 위 "좌(n) / 우(m)"
+    [SerializeField] private TMP_Text ubRatioText;     // UB Progress 위 "상(n) / 하(m)"
 
     private const string PathCalendarBtn = "RealSpace/Top/Calander";
     private const string PathDate    = "RealSpace/Top/Back/TextInfo/Date";
@@ -46,6 +48,8 @@ public class BrushingDetailReportView : MonoBehaviour
     private const string PathUBLeft  = "RealSpace/Coordinate report/Progress/UB Progress/Left";
     private const string PathUBRight = "RealSpace/Coordinate report/Progress/UB Progress/Right";
     private const string PathState   = "RealSpace/Coordinate report/Top/State/Text (TMP)";
+    private const string PathLRText  = "RealSpace/Coordinate report/Progress/Text (TMP)";
+    private const string PathUBText  = "RealSpace/Coordinate report/Progress/Text (TMP) (1)";
 
     private DateTime _from, _to;
     private bool _hasPeriod;
@@ -91,6 +95,8 @@ public class BrushingDetailReportView : MonoBehaviour
         if (ubLeft == null)  ubLeft  = FindComp<Image>(PathUBLeft);
         if (ubRight == null) ubRight = FindComp<Image>(PathUBRight);
         if (balanceStateText == null) balanceStateText = FindComp<TMP_Text>(PathState);
+        if (lrRatioText == null) lrRatioText = FindComp<TMP_Text>(PathLRText);
+        if (ubRatioText == null) ubRatioText = FindComp<TMP_Text>(PathUBText);
     }
 
     private T FindComp<T>(string path) where T : Component
@@ -191,6 +197,24 @@ public class BrushingDetailReportView : MonoBehaviour
 
         UpdatePointer(rep);
         UpdateBalanceState(rep);
+        UpdateRatioTexts(rep);
+    }
+
+    /// <summary>LR/UB Progress 위 텍스트에 좌우·상하 비율을 정수 %(합 100)로 적는다.</summary>
+    private void UpdateRatioTexts(PeriodReport rep)
+    {
+        if (lrRatioText != null)
+        {
+            int left = Mathf.Clamp(Mathf.RoundToInt(rep.leftRatio * 100f), 0, 100);
+            int right = 100 - left;   // 합이 항상 100이 되도록 한쪽에서 차감.
+            lrRatioText.text = $"좌({left}) / 우({right})";
+        }
+        if (ubRatioText != null)
+        {
+            int up = Mathf.Clamp(Mathf.RoundToInt(rep.upRatio * 100f), 0, 100);
+            int down = 100 - up;
+            ubRatioText.text = $"상({up}) / 하({down})";
+        }
     }
 
     private void UpdatePointer(PeriodReport rep)

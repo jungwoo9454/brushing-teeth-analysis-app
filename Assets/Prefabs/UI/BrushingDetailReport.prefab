@@ -4256,6 +4256,8 @@ MonoBehaviour:
   ubLeft: {fileID: 0}
   ubRight: {fileID: 0}
   balanceStateText: {fileID: 0}
+  lrRatioText: {fileID: 0}
+  ubRatioText: {fileID: 0}
 --- !u!1 &8151171409372303943
 GameObject:
   m_ObjectHideFlags: 0
