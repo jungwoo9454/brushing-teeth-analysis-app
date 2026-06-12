@@ -42,7 +42,14 @@
       "Bash(cd \"/c/Users/kim27/Desktop/sesalbeoreut_realtime_demo\")",
       "Bash(ls -la Unity_port)",
       "PowerShell(Start-Sleep -Seconds 5; \"검증 프레임 수집 완료\")",
-      "PowerShell(Start-Sleep -Seconds 7; \"컴파일 대기 완료\")"
+      "PowerShell(Start-Sleep -Seconds 7; \"컴파일 대기 완료\")",
+      "Bash(cmd *)",
+      "Bash(git *)",
+      "Bash(Select-String \"TMP\")",
+      "mcp__UnityMCP__execute_code",
+      "mcp__UnityMCP__get_sha",
+      "Bash(find \"Assets/Character/Art/Animations\" -type f \\\\\\( -name \"*.anim\" -o -name \"*.controller\" -o -name \"*.fbx\" \\\\\\))",
+      "Bash(find \"Assets/Character\" -type f \\\\\\( -name \"*.anim\" -o -name \"*.controller\" -o -name \"*.overrideController\" \\\\\\))"
     ]
   }
 }
