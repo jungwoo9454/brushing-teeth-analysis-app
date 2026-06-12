@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91fef2e21fff9464abf9aebddf5935be, type: 3}
   m_Name: BrushingRoutine
   m_EditorClassIdentifier:
-  totalSeconds: 30
+  totalSeconds: 60
   steps:
   - zone: 4
     seconds: 0

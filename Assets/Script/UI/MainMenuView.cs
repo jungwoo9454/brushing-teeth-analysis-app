@@ -66,8 +66,8 @@ public class MainMenuView : MonoBehaviour
     private const string PathChildList        = "RealSpace/ChildList";
     private const string PathChildSlotContent = "RealSpace/ChildList/Viewport/Content";
     private const string PathChildSlotTemplate = PathChildSlotContent + "/Child slot";
-    private const string ChildSlotNamePath = "Text (TMP) (1)";   // 이름
-    private const string ChildSlotAgePath  = "Text (TMP)";       // 나이
+    private const string ChildSlotNamePath = "Text (TMP)";       // 이름 (위 텍스트)
+    private const string ChildSlotAgePath  = "Text (TMP) (1)";   // 나이 (아래 텍스트)
 
     // Todo 항목 내부 자식 경로
     private const string ChildChecked  = "Checked";

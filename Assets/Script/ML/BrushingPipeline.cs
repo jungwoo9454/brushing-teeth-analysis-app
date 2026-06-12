@@ -73,8 +73,14 @@ public class BrushingPipeline : MonoBehaviour
     // 카메라 입력 텍스처(원본).
     private WebCamTexture webcam;
 
-    // unmirror 결과를 담을 RenderTexture. unmirror가 필요 없을 땐 null로 유지.
+    // unmirror/회전 결과를 담을 RenderTexture. 변환이 필요 없을 땐 null로 유지.
     private RenderTexture sourceRt;
+
+    // 센서 방향(videoRotationAngle) 회전 + unmirror를 한 번에 처리하는 블릿 머티리얼(Hidden/CameraOrient).
+    private Material _orientMat;
+
+    // MediaPipe를 sourceRt로 재바인딩했는지 여부 — 회전 모드 진입 시 1회만 입력을 교체하기 위한 가드.
+    private bool _faceProviderBoundToSource;
 
     // 시간 평활 — 매 프레임 softmax 확률 벡터(또는 None 감쇠)를 Push (HANDOFF §7 칼만 EMA).
     private readonly KalmanZoneFilter kalman = new KalmanZoneFilter();
@@ -116,11 +122,16 @@ public class BrushingPipeline : MonoBehaviour
     {
         if (webcam != null) webcam.Stop();
         if (sourceRt != null) { sourceRt.Release(); Destroy(sourceRt); sourceRt = null; }
+        if (_orientMat != null) { Destroy(_orientMat); _orientMat = null; }
     }
 
     // 카메라 첫 프레임 수신 시점에 RawImage RectTransform을 카메라 비율로 fit하기 위한 1회성 가드.
     // Start 시점엔 webcam.width/height가 placeholder(16x16)라 정확한 비율을 계산할 수 없다.
     private bool _previewFitted;
+
+    // 미리보기 회전/미러 보정의 마지막 적용값 — 디바이스 회전으로 값이 바뀔 때만 다시 반영하기 위한 캐시.
+    private int _appliedPreviewRotation = int.MinValue;
+    private bool _appliedPreviewMirror;
 
     private void Update()
     {
@@ -134,6 +145,9 @@ public class BrushingPipeline : MonoBehaviour
         //     _previewFitted = true;
         //     FitPreviewToParent(webcam.width, webcam.height);
         // }
+
+        // 미리보기를 카메라 센서 방향에 맞춰 회전·미러 보정 (iOS 등에서 90° 누워 나오는 문제 교정).
+        ApplyPreviewOrientation();
 
         if (faceProvider == null) { PublishEmpty(); return; }
 
@@ -204,25 +218,56 @@ public class BrushingPipeline : MonoBehaviour
     // ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 카메라 원본을 그대로 또는 unmirror된 RenderTexture로 반환.
-    /// 전면(셀카) 카메라일 때 학습 분포와 일치시키기 위해 좌우 반전을 풀어준다.
+    /// 카메라 원본을 ML 입력에 맞춰 보정한 텍스처로 반환한다.
+    ///   - 전면(셀카) 카메라: 학습 분포와 맞추기 위해 좌우 반전을 풀어준다(unmirror).
+    ///   - iOS 등 센서가 가로 기준이라 90/270° 누워 들어오는 경우(videoRotationAngle):
+    ///     회전을 적용해 YOLO·MediaPipe가 똑바로 선 프레임을 보게 한다.
+    /// 회전이 필요할 때는 같은 sourceRt를 MediaPipe 입력으로도 재바인딩해 두 모델이
+    /// 동일한 좌표계를 공유하도록 한다(어긋나면 FeatureBuilder가 zone을 잘못 계산).
     /// </summary>
     private Texture PrepareSource()
     {
-        // 토글 OFF이거나 후면 카메라면 그대로 — 불필요한 Blit 회피.
         bool needUnmirror = unmirrorFrontCamera && IsCurrentDeviceFrontFacing();
-        if (!needUnmirror) return webcam;
+        int rotation = webcam.videoRotationAngle;   // 0/90/180/270 (보통 모바일 전면 portrait=90)
+        bool needRotate = rotation != 0;
 
-        // RT 준비 (해상도 변경 시 재생성).
-        if (sourceRt == null || sourceRt.width != webcam.width || sourceRt.height != webcam.height)
+        // 변환이 전혀 필요 없으면(주로 데스크톱 후면/미러 OFF) 원본 그대로 — 불필요한 Blit 회피.
+        if (!needUnmirror && !needRotate) return webcam;
+
+        // 회전 시 가로/세로가 뒤바뀌므로 출력 RT 크기를 그에 맞춘다.
+        bool swap = rotation == 90 || rotation == 270;
+        int outW = swap ? webcam.height : webcam.width;
+        int outH = swap ? webcam.width : webcam.height;
+
+        // RT 준비 (해상도/방향 변경 시 재생성).
+        if (sourceRt == null || sourceRt.width != outW || sourceRt.height != outH)
         {
             if (sourceRt != null) { sourceRt.Release(); Destroy(sourceRt); }
-            sourceRt = new RenderTexture(webcam.width, webcam.height, 0, RenderTextureFormat.ARGB32);
+            sourceRt = new RenderTexture(outW, outH, 0, RenderTextureFormat.ARGB32);
             sourceRt.Create();
+            _faceProviderBoundToSource = false;   // RT가 바뀌면 MediaPipe 재바인딩 필요.
         }
 
-        // Graphics.Blit으로 horizontal flip — scale.x=-1, offset.x=1 이면 x 좌표가 (1-x)로 매핑된다.
-        Graphics.Blit(webcam, sourceRt, new Vector2(-1f, 1f), new Vector2(1f, 0f));
+        if (!needRotate)
+        {
+            // 회전 불필요(데스크톱 등) — 검증된 기존 경로: 가로 반전만.
+            // scale.x=-1, offset.x=1 이면 x 좌표가 (1-x)로 매핑된다.
+            Graphics.Blit(webcam, sourceRt, new Vector2(-1f, 1f), new Vector2(1f, 0f));
+            return sourceRt;
+        }
+
+        // 회전(+unmirror) — 전용 셰이더로 한 번에 처리.
+        if (_orientMat == null) _orientMat = new Material(Shader.Find("Hidden/CameraOrient"));
+        _orientMat.SetFloat("_AngleDeg", rotation);
+        _orientMat.SetFloat("_FlipX", needUnmirror ? 1f : 0f);
+        Graphics.Blit(webcam, sourceRt, _orientMat);
+
+        // 회전 모드에서는 MediaPipe도 같은 oriented 텍스처를 보게 한다(unmirror는 RT에 이미 반영 → false).
+        if (!_faceProviderBoundToSource && faceProvider is MediaPipeFaceProvider mp)
+        {
+            mp.SetInputTexture(sourceRt, false);
+            _faceProviderBoundToSource = true;
+        }
         return sourceRt;
     }
 
@@ -311,6 +356,34 @@ public class BrushingPipeline : MonoBehaviour
         rt.pivot     = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = Vector2.zero;
         rt.sizeDelta = new Vector2(w, h);
+    }
+
+    /// <summary>
+    /// 미리보기 RawImage를 카메라 센서 방향에 맞춰 회전·미러 보정한다.
+    /// iOS/Android 전면 카메라는 센서가 가로 기준이라 WebCamTexture가 90/270° 누운 채로 들어온다
+    /// (<see cref="WebCamTexture.videoRotationAngle"/>). 이를 적용하지 않으면 미리보기가 옆으로 눕는다.
+    /// videoRotationAngle은 "올바로 보이게 하려면 시계방향으로 돌려야 하는 각도"이고, RectTransform의
+    /// z 회전은 반시계가 +라 부호를 뒤집는다. 화면이 가로(16:9) 슬롯이라 90° 돌리면 자연히 세로(9:16)로
+    /// 맞아 떨어진다(center pivot이라 위치도 그대로). 디바이스 회전으로 값이 바뀔 수 있어 매 프레임
+    /// 확인하되 변할 때만 실제 반영한다. 에디터 웹캠은 보통 angle=0이라 데스크톱 동작엔 영향이 없다.
+    /// </summary>
+    private void ApplyPreviewOrientation()
+    {
+        if (previewImage == null || webcam == null) return;
+
+        int rotation = webcam.videoRotationAngle;
+        bool mirror = webcam.videoVerticallyMirrored;
+        if (rotation == _appliedPreviewRotation && mirror == _appliedPreviewMirror) return;
+        _appliedPreviewRotation = rotation;
+        _appliedPreviewMirror = mirror;
+
+        var rt = previewImage.rectTransform;
+        rt.localEulerAngles = new Vector3(0f, 0f, -rotation);
+
+        // 세로 미러 플래그가 서면(주로 iOS 전면) 회전 후 위아래가 뒤집혀 보이므로 y 스케일로 되돌린다.
+        float sy = mirror ? -1f : 1f;
+        var s = rt.localScale;
+        rt.localScale = new Vector3(s.x, Mathf.Abs(s.y) * sy, s.z);
     }
 
     /// <summary>

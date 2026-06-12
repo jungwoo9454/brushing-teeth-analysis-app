@@ -995,6 +995,7 @@ GameObject:
   - component: {fileID: 607209670}
   - component: {fileID: 607209669}
   - component: {fileID: 607209672}
+  - component: {fileID: 607209673}
   m_Layer: 0
   m_Name: Close
   m_TagString: Untagged
@@ -1066,6 +1067,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &607209673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607209667}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 971a88af58a0a42de9b74adc31af7261, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &607209670
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3317,11 +3330,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eaa76bccfc5e042f1928868057c97c63, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BrushingSession
-  targetTotalSeconds: 30
-  targetPerZoneSeconds: 6
+  targetTotalSeconds: 60
+  targetPerZoneSeconds: 12
   autoStartOnEnable: 1
   autoEndOnTargetReached: 1
-  autoEndAfterSeconds: 30
+  autoEndAfterSeconds: 60
   tickInterval: 0.1
   logSessionEvents: 0
   debugAllowSkip: 1

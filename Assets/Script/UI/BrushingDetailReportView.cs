@@ -26,6 +26,7 @@ public class BrushingDetailReportView : MonoBehaviour
     [SerializeField] private Button calendarButton;   // Top/Calander
 
     [Header("참조 (비우면 경로로 자동 탐색)")]
+    [SerializeField] private TMP_Text titleText;       // Top/Back/TextInfo/hello ment — "{아이 이름}, 기간별 리포트"
     [SerializeField] private TMP_Text dateText;        // Top/Back/TextInfo/Date — 선택 기간
     [SerializeField] private TMP_Text scoreText;       // Total score/Score — 평균 점수
     [SerializeField] private Image scoreFill;          // Total score/Progress/Fill — 점수 바
@@ -38,6 +39,8 @@ public class BrushingDetailReportView : MonoBehaviour
     [SerializeField] private TMP_Text ubRatioText;     // UB Progress 위 "상(n) / 하(m)"
 
     private const string PathCalendarBtn = "RealSpace/Top/Calander";
+    private const string PathBack    = "RealSpace/Top/Back";   // 뒤로가기 버튼(좌상단 화살표)
+    private const string PathTitle   = "RealSpace/Top/Back/TextInfo/hello ment";
     private const string PathDate    = "RealSpace/Top/Back/TextInfo/Date";
     private const string PathScore   = "RealSpace/Total score/Score";
     private const string PathFill    = "RealSpace/Total score/Progress/Fill";
@@ -54,8 +57,8 @@ public class BrushingDetailReportView : MonoBehaviour
     // 아이 선택 슬롯 — 등록된 아이 수만큼 'Child slot'을 복제해 클릭으로 그 아이 리포트를 본다.
     private const string PathSlotContent  = "RealSpace/ChildList/Viewport/Content";
     private const string PathSlotTemplate = PathSlotContent + "/Child slot";
-    private const string SlotNamePath = "Text (TMP) (1)";   // 이름
-    private const string SlotAgePath  = "Text (TMP)";       // 나이
+    private const string SlotNamePath = "Text (TMP)";       // 이름 (위 텍스트)
+    private const string SlotAgePath  = "Text (TMP) (1)";   // 나이 (아래 텍스트)
 
     private DateTime _from, _to;
     private bool _hasPeriod;
@@ -71,6 +74,10 @@ public class BrushingDetailReportView : MonoBehaviour
     {
         ResolveRefs();
         if (calendarButton != null) calendarButton.onClick.AddListener(OpenCalendar);
+
+        // 좌상단 Back → 원래 화면인 BrushingFinish(양치 결과)로 복귀.
+        var back = OnboardingUtil.EnsureButton(transform.Find(PathBack));
+        if (back != null) back.onClick.AddListener(() => AppRouter.ins.ShowScreen(AppRouter.Screen.BrushingFinish));
     }
 
     private void OnEnable()
@@ -96,6 +103,7 @@ public class BrushingDetailReportView : MonoBehaviour
     private void ResolveRefs()
     {
         if (calendarButton == null) calendarButton = FindComp<Button>(PathCalendarBtn);
+        if (titleText == null) titleText = FindComp<TMP_Text>(PathTitle);
         if (dateText == null)  dateText  = FindComp<TMP_Text>(PathDate);
         if (scoreText == null) scoreText = FindComp<TMP_Text>(PathScore);
         if (scoreFill == null) scoreFill = FindComp<Image>(PathFill);
@@ -199,6 +207,14 @@ public class BrushingDetailReportView : MonoBehaviour
     {
         var records = LoadRecords();
         var rep = BrushingStats.Period(records, _from, _to);
+
+        // 제목 "@@" 자리에 현재 보고 있는 아이 이름을 넣는다 — "{이름}, 기간별 리포트".
+        if (titleText != null)
+        {
+            var active = UserMng.ins != null ? UserMng.ins.ActiveChild : null;
+            string childName = active != null ? active.name : null;
+            titleText.text = string.IsNullOrEmpty(childName) ? "기간별 리포트" : $"{childName}, 기간별 리포트";
+        }
 
         if (dateText != null) dateText.text = FormatRange(_from, _to);
 

@@ -39,9 +39,11 @@ public class SettingView : MonoBehaviour
 
     private readonly List<GameObject> _spawned = new List<GameObject>();
     private GameObject _popup;   // 현재 떠 있는 팝업(AddChild / PinInput) — 한 번에 하나만.
+    private Canvas _selfCanvas;  // 설정 화면 Canvas — 팝업 동안 끄면 설정이 뒤로 비치지 않는다.
 
     private void Awake()
     {
+        _selfCanvas  = GetComponent<Canvas>();
         _childs      = transform.Find(PathChilds);
         _template    = transform.Find(PathTemplate);
         _addChild    = transform.Find(PathAddChild);
@@ -215,6 +217,7 @@ public class SettingView : MonoBehaviour
     }
 
     // 팝업 1개를 화면 위(Overlay 최상단)에 띄운다 — 기존 팝업이 있으면 닫고 교체.
+    // 팝업이 떠 있는 동안 설정 Canvas를 꺼서 뒤로 비치지 않게 한다(AddChild는 전체 화면 배경이 없어 그냥 두면 설정이 보임).
     private GameObject OpenPopup(GameObject prefab)
     {
         ClosePopup();
@@ -223,11 +226,16 @@ public class SettingView : MonoBehaviour
         _popup = Instantiate(prefab);
         var canvas = _popup.GetComponent<Canvas>();
         if (canvas != null) { canvas.overrideSorting = true; canvas.sortingOrder = 100; }
+
+        if (_selfCanvas != null) _selfCanvas.enabled = false;   // 설정 화면 숨김(스크립트는 루트라 계속 동작).
         return _popup;
     }
 
     private void ClosePopup()
     {
+        // 팝업이 없더라도 설정 Canvas는 항상 복구(중복 호출/생명주기 종료 대비).
+        if (_selfCanvas != null) _selfCanvas.enabled = true;
+
         if (_popup == null) return;
         Destroy(_popup);
         _popup = null;

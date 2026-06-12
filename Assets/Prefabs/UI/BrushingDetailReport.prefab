@@ -1630,7 +1630,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uB9CC 7\uC138"
+  m_text: "7\uC138"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 109b11d3c02fc144c8a53b27d11f20be, type: 2}
   m_sharedMaterial: {fileID: -5406052676809522901, guid: 109b11d3c02fc144c8a53b27d11f20be, type: 2}
@@ -2187,7 +2187,7 @@ GameObject:
   - component: {fileID: 3275834056125452878}
   - component: {fileID: 4268404443994185841}
   m_Layer: 0
-  m_Name: Scroll View
+  m_Name: ChildList
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2805,7 +2805,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 492, y: -1751}
+  m_AnchoredPosition: {x: 492, y: -1696}
   m_SizeDelta: {x: 984, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8958618511114708930
