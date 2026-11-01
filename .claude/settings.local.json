@@ -51,5 +51,8 @@
       "Bash(find \"Assets/Character/Art/Animations\" -type f \\\\\\( -name \"*.anim\" -o -name \"*.controller\" -o -name \"*.fbx\" \\\\\\))",
       "Bash(find \"Assets/Character\" -type f \\\\\\( -name \"*.anim\" -o -name \"*.controller\" -o -name \"*.overrideController\" \\\\\\))"
     ]
-  }
+  },
+  "disabledMcpjsonServers": [
+    "supabase"
+  ]
 }
