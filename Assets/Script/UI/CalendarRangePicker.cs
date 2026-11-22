@@ -33,6 +33,16 @@ public class CalendarRangePicker : MonoBehaviour
     [Tooltip("오늘 이후(선택 불가) 날짜의 숫자 색. 기본 #8B8F94")]
     [SerializeField] private Color disabledTextColor = new Color(0.545098f, 0.560784f, 0.580392f, 1f);
 
+    [Header("양치 기록 표시 (State Indicator)")]
+    [Tooltip("그 날짜의 양치 횟수에 따라 칸의 State 점을 켜고 색을 칠한다. 끄면 State를 표시하지 않는다.")]
+    [SerializeField] private bool showBrushingState = true;
+    [Tooltip("양치 3회 이상 — 초록")]
+    [SerializeField] private Color state3Color = new Color(0.298f, 0.686f, 0.314f, 1f);   // #4CAF50
+    [Tooltip("양치 2회 — 주황")]
+    [SerializeField] private Color state2Color = new Color(0.961f, 0.651f, 0.137f, 1f);   // #F5A623
+    [Tooltip("양치 1회 — 빨강")]
+    [SerializeField] private Color state1Color = new Color(0.898f, 0.325f, 0.239f, 1f);   // #E5533D
+
     [Header("참조 (비우면 경로로 자동 탐색)")]
     [SerializeField] private TMP_Text monthLabel;
     [SerializeField] private Button prevButton;
@@ -59,6 +69,9 @@ public class CalendarRangePicker : MonoBehaviour
     private const string ChildText       = "Text (TMP)";
     private const string ChildState      = "State";
 
+    // 기본 선택 범위 길이(일) — 오늘 포함 최근 N일. 7 = 1주일.
+    private const int DefaultRangeDays = 7;
+
     /// <summary>달력 한 칸.</summary>
     private class DayCell
     {
@@ -68,12 +81,16 @@ public class CalendarRangePicker : MonoBehaviour
         public Image backgroundImage;
         public TMP_Text label;
         public GameObject state;
+        public Image stateImage;   // State 점의 Image(양치 횟수 색칠용)
         public DateTime date;
         public bool isDay;   // 실제 날짜 칸인지(1일 앞쪽 빈칸 = false)
     }
 
     private readonly List<DayCell> _cells = new List<DayCell>();
     private Transform _slotTemplate;   // 칸 복제용 원본(첫 Slot)
+
+    // 날짜별 양치 '횟수'(로컬 날짜 기준) — Awake에서 1회 적재해 Render에서 State 점 색칠에 쓴다.
+    private readonly Dictionary<DateTime, int> _brushCountByDate = new Dictionary<DateTime, int>();
 
     private int _year;
     private int _month;
@@ -83,19 +100,40 @@ public class CalendarRangePicker : MonoBehaviour
     private Color _enabledTextColor = Color.white;  // 칸의 원래 숫자 색(프리팹에서 캡처)
     private bool _capturedTextColor;
 
+    /// <summary>선택된 기간 시작/끝(없으면 null). 연 쪽(리포트)에서 읽어 기간 통계를 만든다.</summary>
+    public DateTime? RangeStart => _start;
+    public DateTime? RangeEnd => _end;
+    public bool HasRange => _start.HasValue && _end.HasValue;
+
+    /// <summary>Top/Back 버튼을 눌렀을 때 호출 — 연 쪽이 범위를 읽고 이 창을 닫는다.</summary>
+    public event Action<CalendarRangePicker> Closed;
+
+    private const string PathBack = "RealSpace/Top/Back";
+
     private void Awake()
     {
         ResolveReferences();
         BuildCells();
+        LoadBrushingCounts();
 
         if (prevButton != null) prevButton.onClick.AddListener(PrevMonth);
         if (nextButton != null) nextButton.onClick.AddListener(NextMonth);
+
+        // Top/Back → 닫기 콜백(연 쪽에서 범위 읽고 파괴).
+        var backT = transform.Find(PathBack);
+        if (backT != null)
+        {
+            var backBtn = backT.GetComponent<Button>();
+            if (backBtn != null) backBtn.onClick.AddListener(() => Closed?.Invoke(this));
+        }
 
         var today = DateTime.Today;
         _year = today.Year;
         _month = today.Month;
 
-        ClearSelection();
+        // 기본 선택 — 최근 1주일(오늘 포함 7일). 리포트가 SetSelectedRange로 직전 선택을 덮어쓸 수 있다.
+        _start = today.AddDays(-(DefaultRangeDays - 1));
+        _end = today;
         Render();
 
         // 디버그: 인스펙터에서 지정한 초기 범위를 자동 선택(클릭 없이 비주얼 확인용).
@@ -202,8 +240,8 @@ public class CalendarRangePicker : MonoBehaviour
         if (st != null)
         {
             cell.state = st.gameObject;
-            var stImg = st.GetComponent<Image>();
-            if (stImg != null) stImg.raycastTarget = false;
+            cell.stateImage = st.GetComponent<Image>();
+            if (cell.stateImage != null) cell.stateImage.raycastTarget = false;
         }
 
         btn.onClick.AddListener(() => OnDayClicked(cell));
@@ -217,6 +255,51 @@ public class CalendarRangePicker : MonoBehaviour
         var cell = SetupCell(clone.transform);
         _cells.Add(cell);
         return cell;
+    }
+
+    // ── 양치 기록(State Indicator) ─────────────────────────────────
+
+    /// <summary>
+    /// 로컬 JSON 양치 기록을 읽어 '날짜별 양치 횟수'를 집계한다(한 번의 세션 = 1회).
+    /// 같은 날 여러 번 양치하면 합산되며, 색 단계는 ApplyBrushingState에서 3회 이상=초록으로 캡한다.
+    /// 달력은 모달이라 표시 중 기록이 바뀌지 않으므로 Awake에서 1회만 적재한다.
+    /// </summary>
+    private void LoadBrushingCounts()
+    {
+        _brushCountByDate.Clear();
+        if (!showBrushingState) return;
+
+        List<BrushingRecord> records;
+        try { records = ChildRecords.ActiveChildRecords(new JsonBrushingRecordRepository().LoadAll()); }
+        catch { return; }   // 저장소 없음/손상 → 표시 없이 진행(앱 동작엔 영향 없음).
+        if (records == null) return;
+
+        foreach (var r in records)
+        {
+            if (r == null) continue;
+            DateTime day = BrushingStats.LocalTimeOf(r).Date;   // recordedAtUnix → 로컬 날짜
+            _brushCountByDate[day] = (_brushCountByDate.TryGetValue(day, out int c) ? c : 0) + 1;
+        }
+    }
+
+    /// <summary>그 날짜의 양치 횟수에 따라 칸의 State 점을 켜고 색을 칠한다(0회면 끈다).</summary>
+    private void ApplyBrushingState(DayCell cell)
+    {
+        if (cell.state == null) return;
+        if (!showBrushingState) { cell.state.SetActive(false); return; }
+
+        int count = _brushCountByDate.TryGetValue(cell.date.Date, out int c) ? c : 0;
+        if (count <= 0)
+        {
+            cell.state.SetActive(false);   // 양치 안 한 날 — 점 없음.
+            return;
+        }
+
+        cell.state.SetActive(true);
+        if (cell.stateImage != null)
+            cell.stateImage.color = count >= 3 ? state3Color      // 3회 이상 → 초록
+                                  : count == 2 ? state2Color      // 2회 → 주황
+                                               : state1Color;     // 1회 → 빨강
     }
 
     // ── 렌더링 ─────────────────────────────────────────────────────
@@ -261,7 +344,7 @@ public class CalendarRangePicker : MonoBehaviour
                     cell.label.color = selectable ? _enabledTextColor : disabledTextColor;
                 }
                 if (cell.button != null) cell.button.interactable = selectable;
-                if (cell.state != null) cell.state.SetActive(false);
+                ApplyBrushingState(cell);   // 그 날짜 양치 횟수에 따라 State 점 표시/색칠.
                 // Background는 RefreshSelectionVisuals에서 선택 상태에 따라 처리.
             }
             else
@@ -305,6 +388,33 @@ public class CalendarRangePicker : MonoBehaviour
     {
         _start = null;
         _end = null;
+    }
+
+    /// <summary>
+    /// 외부(리포트)에서 선택 범위를 주입한다 — 달력을 열 때 '직전 선택'을 복원하는 용도.
+    /// start만 주면 그 하루를, 둘 다 null이면 선택 해제. 미래 날짜는 오늘로 클램프한다.
+    /// 끝 날짜가 보이도록 그 달로 이동한 뒤 다시 그린다.
+    /// </summary>
+    public void SetSelectedRange(DateTime? start, DateTime? end)
+    {
+        if (!start.HasValue)
+        {
+            ClearSelection();
+            Render();
+            return;
+        }
+
+        DateTime s = start.Value.Date;
+        DateTime e = (end ?? start.Value).Date;
+        if (e < s) { var t = s; s = e; e = t; }      // 앞뒤 정렬
+        if (s > DateTime.Today) s = DateTime.Today;  // 미래 → 오늘로 클램프
+        if (e > DateTime.Today) e = DateTime.Today;
+
+        _start = s;
+        _end = e;
+        _year = e.Year;     // 끝 날짜가 있는 달을 표시
+        _month = e.Month;
+        Render();
     }
 
     /// <summary>현재 표시 중인 달의 칸들에 선택 상태(끝점/사이/비선택)를 반영.</summary>

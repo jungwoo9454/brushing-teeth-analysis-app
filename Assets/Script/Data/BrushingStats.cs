@@ -19,6 +19,29 @@ public static class BrushingStats
     public static DateTime LocalTimeOf(BrushingRecord r)
         => DateTimeOffset.FromUnixTimeSeconds(r.recordedAtUnix).ToLocalTime().DateTime;
 
+    /// <summary>
+    /// 한 아이(childId)의 기록만 거른다 — 아이별 리포트용.
+    /// · childId가 비어 있으면(아이 미지정) 필터 없이 전체를 반환한다.
+    /// · childId 필드가 빈 과거 기록은 fallbackChildId(보통 '첫 아이')의 것으로 간주한다
+    ///   — 기존 데모/더미 데이터가 첫 아이에게 귀속되어 사라지지 않도록.
+    /// </summary>
+    public static List<BrushingRecord> ForChild(IList<BrushingRecord> records, string childId, string fallbackChildId = null)
+    {
+        var result = new List<BrushingRecord>();
+        if (records == null) return result;
+
+        bool noFilter = string.IsNullOrEmpty(childId);
+        foreach (var r in records)
+        {
+            if (r == null) continue;
+            if (noFilter) { result.Add(r); continue; }
+
+            bool legacyOwned = string.IsNullOrEmpty(r.childId) && childId == fallbackChildId;
+            if (r.childId == childId || legacyOwned) result.Add(r);
+        }
+        return result;
+    }
+
     /// <summary>[fromInclusive, toExclusive) 구간 기록들의 평균 점수. 건수는 count로 반환(0이면 평균 0).</summary>
     public static float Average(IList<BrushingRecord> records, DateTime fromInclusive, DateTime toExclusive, out int count)
     {
@@ -128,7 +151,59 @@ public static class BrushingStats
         return result;
     }
 
+    /// <summary>
+    /// [fromDate, toDate] 기간(양끝 날짜 포함) 통계 — 평균 점수와 좌우/상하 균형 비율.
+    /// 좌=왼쪽 어금니(z0+z2), 우=오른쪽(z1+z3), 상=윗니(z0+z1), 하=아랫니(z2+z3). 앞니(z4)는 균형에서 제외.
+    /// 비율은 합=1로 정규화(데이터 없으면 0.5/0.5 = 균형).
+    /// </summary>
+    public static PeriodReport Period(IList<BrushingRecord> records, DateTime fromDate, DateTime toDate)
+    {
+        var rep = new PeriodReport { leftRatio = 0.5f, rightRatio = 0.5f, upRatio = 0.5f, downRatio = 0.5f };
+        if (records == null) return rep;
+
+        DateTime from = fromDate.Date, to = toDate.Date;
+        if (to < from) { var t = from; from = to; to = t; }
+
+        double scoreSum = 0;
+        int n = 0;
+        double left = 0, right = 0, up = 0, down = 0;
+        foreach (var r in records)
+        {
+            if (r == null) continue;
+            var d = LocalTimeOf(r).Date;
+            if (d < from || d > to) continue;
+
+            scoreSum += r.score;
+            n++;
+
+            var z = r.zoneSeconds;
+            if (z != null && z.Length >= 5)
+            {
+                float z0 = z[0] > 0 ? z[0] : 0f, z1 = z[1] > 0 ? z[1] : 0f,
+                      z2 = z[2] > 0 ? z[2] : 0f, z3 = z[3] > 0 ? z[3] : 0f;
+                left  += z0 + z2;  right += z1 + z3;
+                up    += z0 + z1;  down  += z2 + z3;
+            }
+        }
+
+        rep.count = n;
+        rep.avgScore = n > 0 ? (float)(scoreSum / n) : 0f;
+        double lr = left + right, ud = up + down;
+        if (lr > 0) { rep.leftRatio = (float)(left / lr); rep.rightRatio = (float)(right / lr); }
+        if (ud > 0) { rep.upRatio = (float)(up / ud); rep.downRatio = (float)(down / ud); }
+        return rep;
+    }
+
     private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
+}
+
+/// <summary>기간 통합 리포트 결과(브러싱 디테일 리포트용).</summary>
+public struct PeriodReport
+{
+    public int count;          // 기간 내 기록 수
+    public float avgScore;     // 평균 점수(0~100)
+    public float leftRatio, rightRatio;  // 좌우 비율(합=1)
+    public float upRatio, downRatio;     // 상하 비율(합=1)
 }
 
 /// <summary>가장 부족한 구역 분석 결과(메인 메뉴 Alert report용).</summary>

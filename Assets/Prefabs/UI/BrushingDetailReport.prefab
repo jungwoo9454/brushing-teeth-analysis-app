@@ -1555,7 +1555,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 7482667652216324306, guid: d90c67618dcab1143be0345205ecece5, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1630,7 +1630,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uB9CC 7\uC138"
+  m_text: "7\uC138"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 109b11d3c02fc144c8a53b27d11f20be, type: 2}
   m_sharedMaterial: {fileID: -5406052676809522901, guid: 109b11d3c02fc144c8a53b27d11f20be, type: 2}
@@ -2187,7 +2187,7 @@ GameObject:
   - component: {fileID: 3275834056125452878}
   - component: {fileID: 4268404443994185841}
   m_Layer: 0
-  m_Name: Scroll View
+  m_Name: ChildList
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2780,7 +2780,6 @@ GameObject:
   - component: {fileID: 5498810316140125062}
   - component: {fileID: 8958618511114708930}
   - component: {fileID: 59534459203140849}
-  - component: {fileID: 5428703360424539615}
   m_Layer: 0
   m_Name: streakDays
   m_TagString: Untagged
@@ -2805,8 +2804,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 492, y: -1696}
-  m_SizeDelta: {x: 984, y: 0}
+  m_AnchoredPosition: {x: 492, y: -1761}
+  m_SizeDelta: {x: 984, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8958618511114708930
 CanvasRenderer:
@@ -2846,20 +2845,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &5428703360424539615
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4426957770625686847}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
-  m_HorizontalFit: 0
-  m_VerticalFit: 2
 --- !u!1 &4670664823373258410
 GameObject:
   m_ObjectHideFlags: 0
@@ -3829,7 +3814,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 170}
+  m_SizeDelta: {x: 0, y: 180}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &7138460189457474454
 GameObject:
@@ -4139,6 +4124,7 @@ GameObject:
   - component: {fileID: 3833523033711731420}
   - component: {fileID: 2906884681715281543}
   - component: {fileID: 6229574505866117521}
+  - component: {fileID: 4457799278194986839}
   m_Layer: 0
   m_Name: BrushingDetailReport
   m_TagString: Untagged
@@ -4231,6 +4217,33 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &4457799278194986839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7995648160208272991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b850567eebec248449508bb55db67e11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BrushingDetailReportView
+  calendarPrefab: {fileID: 7995648160208272991, guid: 8fc09edf5fb47d947ab0cb28bd483ed4, type: 3}
+  calendarButton: {fileID: 0}
+  titleText: {fileID: 0}
+  dateText: {fileID: 0}
+  scoreText: {fileID: 0}
+  scoreFill: {fileID: 0}
+  pointer: {fileID: 0}
+  coordinate: {fileID: 0}
+  lrLeft: {fileID: 0}
+  lrRight: {fileID: 0}
+  ubLeft: {fileID: 0}
+  ubRight: {fileID: 0}
+  balanceStateText: {fileID: 0}
+  lrRatioText: {fileID: 0}
+  ubRatioText: {fileID: 0}
 --- !u!1 &8151171409372303943
 GameObject:
   m_ObjectHideFlags: 0
@@ -4241,6 +4254,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1145740000288428625}
   - component: {fileID: 4397075985347057218}
+  - component: {fileID: 2956121140369947665}
   m_Layer: 0
   m_Name: RealSpace
   m_TagString: Untagged
@@ -4271,8 +4285,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 77.5}
-  m_SizeDelta: {x: -96, y: -295}
+  m_AnchoredPosition: {x: 0, y: 57.5}
+  m_SizeDelta: {x: -96, y: -335}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &4397075985347057218
 MonoBehaviour:
@@ -4300,6 +4314,19 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &2956121140369947665
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8151171409372303943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d22e23ca6e66ff143abf941eb36b1f9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LayoutRebuildOnEnable
+  rebuildNextFrame: 1
 --- !u!1 &8386886229423339749
 GameObject:
   m_ObjectHideFlags: 0

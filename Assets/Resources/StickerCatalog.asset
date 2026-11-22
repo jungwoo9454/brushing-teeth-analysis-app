@@ -1,0 +1,215 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba21eb1dfaad91c48842ec2bf624409a, type: 3}
+  m_Name: StickerCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::StickerCatalog
+  stickers:
+  - id: sticker_00
+    displayName: Golf Bag
+    sprite: {fileID: 21300000, guid: fa967327d3f59b243986cfd12216708b, type: 3}
+    description: "Golf Bag \uC2A4\uD2F0\uCEE4"
+  - id: sticker_01
+    displayName: Console P2 Vertical
+    sprite: {fileID: 21300000, guid: c4d034f069d9d604c9d45a691b064dcc, type: 3}
+    description: "Console P2 Vertical \uC2A4\uD2F0\uCEE4"
+  - id: sticker_02
+    displayName: Whale
+    sprite: {fileID: 21300000, guid: 8705c73d4827b7a489999087a365f101, type: 3}
+    description: "Whale \uC2A4\uD2F0\uCEE4"
+  - id: sticker_03
+    displayName: Mobile
+    sprite: {fileID: 21300000, guid: 0ff9eb21542e8f24aacc8e300097e790, type: 3}
+    description: "Mobile \uC2A4\uD2F0\uCEE4"
+  - id: sticker_04
+    displayName: Bread Toast
+    sprite: {fileID: 21300000, guid: 4828d30be7b250042aeb41d8c04e8078, type: 3}
+    description: "Bread Toast \uC2A4\uD2F0\uCEE4"
+  - id: sticker_05
+    displayName: Corals
+    sprite: {fileID: 21300000, guid: 8ed0849bc7f53bc4cb8145ec6c27ba3b, type: 3}
+    description: "Corals \uC2A4\uD2F0\uCEE4"
+  - id: sticker_06
+    displayName: Spider
+    sprite: {fileID: 21300000, guid: 995096a22a48cc74b844f1cf162df01f, type: 3}
+    description: "Spider \uC2A4\uD2F0\uCEE4"
+  - id: sticker_07
+    displayName: Tea Cup Small
+    sprite: {fileID: 21300000, guid: b8efffedc4ec27e4a997c320a7ceac8b, type: 3}
+    description: "Tea Cup Small \uC2A4\uD2F0\uCEE4"
+  - id: sticker_08
+    displayName: Star Bronze
+    sprite: {fileID: 21300000, guid: f3c29fd589e632c4fabb4f3a688cd098, type: 3}
+    description: "Star Bronze \uC2A4\uD2F0\uCEE4"
+  - id: sticker_09
+    displayName: Bread Toast Toasted
+    sprite: {fileID: 21300000, guid: b2a2b01a7851e8c4485606c380e95323, type: 3}
+    description: "Bread Toast Toasted \uC2A4\uD2F0\uCEE4"
+  - id: sticker_10
+    displayName: Cat Black Head
+    sprite: {fileID: 21300000, guid: 396e788cc99182b44b68ed536776341c, type: 3}
+    description: "Cat Black Head \uC2A4\uD2F0\uCEE4"
+  - id: sticker_11
+    displayName: Pc Desktop Gaming
+    sprite: {fileID: 21300000, guid: 71a3a72dab7a12b4da78cc7f03d5ccdf, type: 3}
+    description: "Pc Desktop Gaming \uC2A4\uD2F0\uCEE4"
+  - id: sticker_12
+    displayName: Flowers
+    sprite: {fileID: 21300000, guid: 43f0c5b47e9d7e740868b2615bba5e44, type: 3}
+    description: "Flowers \uC2A4\uD2F0\uCEE4"
+  - id: sticker_13
+    displayName: Music Record
+    sprite: {fileID: 21300000, guid: 7e26328a045a66d44a3c6b2eda164937, type: 3}
+    description: "Music Record \uC2A4\uD2F0\uCEE4"
+  - id: sticker_14
+    displayName: Soccer Gate
+    sprite: {fileID: 21300000, guid: bcea8738851816e47a4a622b53c47e57, type: 3}
+    description: "Soccer Gate \uC2A4\uD2F0\uCEE4"
+  - id: sticker_15
+    displayName: Parrot Head
+    sprite: {fileID: 21300000, guid: 14f7eec96d1b04846b33cb60b707c941, type: 3}
+    description: "Parrot Head \uC2A4\uD2F0\uCEE4"
+  - id: sticker_16
+    displayName: Coin Bitcoin Bronze
+    sprite: {fileID: 21300000, guid: 5ae6d5f75a7a33f4ba84bbefa7a44d48, type: 3}
+    description: "Coin Bitcoin Bronze \uC2A4\uD2F0\uCEE4"
+  - id: sticker_17
+    displayName: Glass Beer Ale
+    sprite: {fileID: 21300000, guid: 54696ece9eba8b0409b36db47415d985, type: 3}
+    description: "Glass Beer Ale \uC2A4\uD2F0\uCEE4"
+  - id: sticker_18
+    displayName: Pachycephalosaurus
+    sprite: {fileID: 21300000, guid: ec460e71701d71342af4a72ed62471bb, type: 3}
+    description: "Pachycephalosaurus \uC2A4\uD2F0\uCEE4"
+  - id: sticker_19
+    displayName: Trumpet
+    sprite: {fileID: 21300000, guid: b3e6174485debf647954ee1a3bbb7054, type: 3}
+    description: "Trumpet \uC2A4\uD2F0\uCEE4"
+  - id: sticker_20
+    displayName: Triceratops
+    sprite: {fileID: 21300000, guid: 9764db9225c8f2b46a872cb0d8bd58b7, type: 3}
+    description: "Triceratops \uC2A4\uD2F0\uCEE4"
+  - id: sticker_21
+    displayName: Fish Swarm
+    sprite: {fileID: 21300000, guid: a2106ea2d516aaf45b1d6302fdd03b04, type: 3}
+    description: "Fish Swarm \uC2A4\uD2F0\uCEE4"
+  - id: sticker_22
+    displayName: Usb Flash Stick
+    sprite: {fileID: 21300000, guid: 034518b44dd491f4caf017ae5538efb5, type: 3}
+    description: "Usb Flash Stick \uC2A4\uD2F0\uCEE4"
+  - id: sticker_23
+    displayName: Iguanodon
+    sprite: {fileID: 21300000, guid: debc3ca160eb6f544b29284d53657baa, type: 3}
+    description: "Iguanodon \uC2A4\uD2F0\uCEE4"
+  - id: sticker_24
+    displayName: Coin Crown Gold
+    sprite: {fileID: 21300000, guid: 4c907971a5e2fb74aa06aaa138fd863f, type: 3}
+    description: "Coin Crown Gold \uC2A4\uD2F0\uCEE4"
+  - id: sticker_25
+    displayName: Gorilla Head
+    sprite: {fileID: 21300000, guid: 448795cb7ebb7484991975644e75b94b, type: 3}
+    description: "Gorilla Head \uC2A4\uD2F0\uCEE4"
+  - id: sticker_26
+    displayName: Glass Wine Red
+    sprite: {fileID: 21300000, guid: a6083ed0c08a16645a9d809fe4ec7093, type: 3}
+    description: "Glass Wine Red \uC2A4\uD2F0\uCEE4"
+  - id: sticker_27
+    displayName: Stegosaurus
+    sprite: {fileID: 21300000, guid: a4cb09c4f6311bf4f9b9808181485aea, type: 3}
+    description: "Stegosaurus \uC2A4\uD2F0\uCEE4"
+  - id: sticker_28
+    displayName: Box Attack
+    sprite: {fileID: 21300000, guid: 479df1c852d6f7f4891ebec3af25e2ae, type: 3}
+    description: "Box Attack \uC2A4\uD2F0\uCEE4"
+  - id: sticker_29
+    displayName: Star Silver
+    sprite: {fileID: 21300000, guid: b13a70a9537b5e64b88e3450bf1809a0, type: 3}
+    description: "Star Silver \uC2A4\uD2F0\uCEE4"
+  - id: sticker_30
+    displayName: Frog
+    sprite: {fileID: 21300000, guid: 2eaddfba3e42b254698c7f2f41021176, type: 3}
+    description: "Frog \uC2A4\uD2F0\uCEE4"
+  - id: sticker_31
+    displayName: Shrub Flowers
+    sprite: {fileID: 21300000, guid: 2c9998f842cb0d9408cbd3c491c93c41, type: 3}
+    description: "Shrub Flowers \uC2A4\uD2F0\uCEE4"
+  - id: sticker_32
+    displayName: Handheld Console
+    sprite: {fileID: 21300000, guid: 4b7f760816d832c4fb806396c1458159, type: 3}
+    description: "Handheld Console \uC2A4\uD2F0\uCEE4"
+  - id: sticker_33
+    displayName: Dartboard
+    sprite: {fileID: 21300000, guid: 3030bcb243902734f919f8544a0718bb, type: 3}
+    description: "Dartboard \uC2A4\uD2F0\uCEE4"
+  - id: sticker_34
+    displayName: Ostrich Head
+    sprite: {fileID: 21300000, guid: ec2f85e54a8f3df4e872497a8361df5f, type: 3}
+    description: "Ostrich Head \uC2A4\uD2F0\uCEE4"
+  - id: sticker_35
+    displayName: Console P1
+    sprite: {fileID: 21300000, guid: bf696026d5a6ad442a6ec3170aa41310, type: 3}
+    description: "Console P1 \uC2A4\uD2F0\uCEE4"
+  - id: sticker_36
+    displayName: Meat Haunch
+    sprite: {fileID: 21300000, guid: d4dbe902251f614488b3fa87d8506dca, type: 3}
+    description: "Meat Haunch \uC2A4\uD2F0\uCEE4"
+  - id: sticker_37
+    displayName: Cat Black
+    sprite: {fileID: 21300000, guid: c374ee0440b691e4a8cc839f058981bd, type: 3}
+    description: "Cat Black \uC2A4\uD2F0\uCEE4"
+  - id: sticker_38
+    displayName: Lion Head
+    sprite: {fileID: 21300000, guid: cf1370df023823c4786d334456e0fb53, type: 3}
+    description: "Lion Head \uC2A4\uD2F0\uCEE4"
+  - id: sticker_39
+    displayName: Crab
+    sprite: {fileID: 21300000, guid: e330c10d4f4d3e14fa905c80286ea90f, type: 3}
+    description: "Crab \uC2A4\uD2F0\uCEE4"
+  - id: sticker_40
+    displayName: Coin Crown Silver
+    sprite: {fileID: 21300000, guid: 3a64f3f8263386742add233fd6b03134, type: 3}
+    description: "Coin Crown Silver \uC2A4\uD2F0\uCEE4"
+  - id: sticker_41
+    displayName: Soccer Ball
+    sprite: {fileID: 21300000, guid: 6c231bbded82eb3489c28fb1815f101c, type: 3}
+    description: "Soccer Ball \uC2A4\uD2F0\uCEE4"
+  - id: sticker_42
+    displayName: Cotton Plant
+    sprite: {fileID: 21300000, guid: 529e61bfe78941546b47f68d430addb4, type: 3}
+    description: "Cotton Plant \uC2A4\uD2F0\uCEE4"
+  - id: sticker_43
+    displayName: Ball Beach
+    sprite: {fileID: 21300000, guid: 0b32226288e1c0647863a519033a8900, type: 3}
+    description: "Ball Beach \uC2A4\uD2F0\uCEE4"
+  - id: sticker_44
+    displayName: Bear Polar
+    sprite: {fileID: 21300000, guid: 11451bea5ce10fe47a216c1316cf20a2, type: 3}
+    description: "Bear Polar \uC2A4\uD2F0\uCEE4"
+  - id: sticker_45
+    displayName: Deer Head
+    sprite: {fileID: 21300000, guid: 2da7c2ad229f701428f6638124bd8ab6, type: 3}
+    description: "Deer Head \uC2A4\uD2F0\uCEE4"
+  - id: sticker_46
+    displayName: Pizza Cheese Slice
+    sprite: {fileID: 21300000, guid: 4bade0b54d3eb164187c4044ded2f372, type: 3}
+    description: "Pizza Cheese Slice \uC2A4\uD2F0\uCEE4"
+  - id: sticker_47
+    displayName: Microphone
+    sprite: {fileID: 21300000, guid: c2baf69f3a7dd7847893efe217f3036c, type: 3}
+    description: "Microphone \uC2A4\uD2F0\uCEE4"
+  - id: sticker_48
+    displayName: Potato Fries
+    sprite: {fileID: 21300000, guid: 239d596b60ef278458fa98aa5357e0ae, type: 3}
+    description: "Potato Fries \uC2A4\uD2F0\uCEE4"
+  - id: sticker_49
+    displayName: Gorilla
+    sprite: {fileID: 21300000, guid: b73abf202567a3f4fb3d5dbac21ba965, type: 3}
+    description: "Gorilla \uC2A4\uD2F0\uCEE4"

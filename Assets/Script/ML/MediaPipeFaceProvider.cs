@@ -237,10 +237,39 @@ public class MediaPipeFaceProvider : MonoBehaviour, IFaceLandmarksProvider
             return _cpuTex;
         }
 
+        // RenderTexture(주로 BrushingPipeline.PrepareSource가 회전·unmirror해 넘기는 oriented source) 지원.
+        // YOLO와 동일한 텍스처를 공유해 두 모델의 좌표계를 일치시킨다. ReadPixels로 CPU 픽셀을 읽은 뒤,
+        // WebCamTexture 경로와 동일하게 세로 반전(상하)만 적용한다 — 가로 반전(unmirror)은 RT에 이미 반영돼
+        // 있으므로 _flipHorizontal=false로 설정돼 넘어온다.
+        if (src is RenderTexture rt)
+        {
+            int w = rt.width, h = rt.height;
+
+            if (_cpuTex == null || _cpuTex.width != w || _cpuTex.height != h)
+            {
+                if (_cpuTex != null) Destroy(_cpuTex);
+                _cpuTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+                _pixelBuffer = new Color32[w * h];
+                _flipBuffer  = new Color32[w * h];
+            }
+
+            // _cpuTex를 스크래치로 재사용: 활성 RT에서 픽셀을 읽어 들인 뒤 좌표계 보정.
+            var prevActive = RenderTexture.active;
+            RenderTexture.active = rt;
+            _cpuTex.ReadPixels(new Rect(0, 0, w, h), 0, 0, false);
+            RenderTexture.active = prevActive;
+
+            // raw 데이터(NativeArray 뷰)를 GC 없이 _pixelBuffer로 복사 — Texture2D엔 GetPixels32(버퍼) 오버로드가 없다.
+            _cpuTex.GetRawTextureData<Color32>().CopyTo(_pixelBuffer);
+            FlipPixels(_pixelBuffer, _flipBuffer, w, h, _flipHorizontal);
+            _cpuTex.SetPixels32(_flipBuffer);
+            _cpuTex.Apply(false);
+            return _cpuTex;
+        }
+
         // 이미 Texture2D면 변환 불필요 — 그대로 반환.
         if (src is Texture2D tex2D) return tex2D;
 
-        // RenderTexture 같은 다른 타입은 지원 안 함 (필요 시 ReadPixels 경로 추가).
         return null;
     }
 

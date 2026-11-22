@@ -72,6 +72,7 @@ public class BrushingHudView : MonoBehaviour
     private bool _engagedShown;                 // 마지막으로 표시한 isEngaged.
     private bool _hasEngagedShown;              // _engagedShown이 유효한지(첫 갱신 가드).
     private int  _zoneKeyShown = int.MinValue;  // 마지막으로 표시한 구역 key.
+    private float _routineTotalSeconds;         // 루틴 전체 목표 시간 — 종료 시 타이머를 가득 채워 표시하는 데 사용.
 
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
@@ -85,6 +86,8 @@ public class BrushingHudView : MonoBehaviour
         EventBus.Subscribe<CharacterDialogueEvent>(OnDialogue);
         // 실시간 양치 상태/현재 구역 — ML 파이프라인이 매 프레임 발행.
         EventBus.Subscribe<ZoneDetectedEvent>(OnZoneDetected);
+        // 세션 종료(=결과 화면 전환 트리거) — 진행바를 가득 채워 끝맺는다.
+        EventBus.Subscribe<BrushingSessionCompletedEvent>(OnSessionCompleted);
 
         // 현재 구역 표시는 항상 보이도록(루틴 시절 숨겨졌을 수 있어 명시적으로 켠다).
         if (nextAreaGroup != null) nextAreaGroup.SetActive(true);
@@ -103,6 +106,7 @@ public class BrushingHudView : MonoBehaviour
         EventBus.Unsubscribe<RoutineCompletedEvent>(OnRoutineCompleted);
         EventBus.Unsubscribe<CharacterDialogueEvent>(OnDialogue);
         EventBus.Unsubscribe<ZoneDetectedEvent>(OnZoneDetected);
+        EventBus.Unsubscribe<BrushingSessionCompletedEvent>(OnSessionCompleted);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -112,8 +116,22 @@ public class BrushingHudView : MonoBehaviour
     /// <summary>루틴 시작 → 타이머/진행바 초기화.</summary>
     private void OnRoutineStarted(RoutineStartedEvent e)
     {
+        _routineTotalSeconds = e.totalSeconds;
         SetFill(0f);
         SetTime(0f, e.totalSeconds);
+    }
+
+    /// <summary>
+    /// 세션 종료(결과 화면으로 넘어가는 실제 트리거) → 진행바를 가득 채워 마무리한다.
+    /// 진행바는 '양치한 시간(engaged)' 기준이라, 벽시계로 끝나는 세션 종료 시점엔 늘 약간 모자라
+    /// 덜 찬 채로 화면이 넘어가 보였다 — 종료 순간 100%로 맞춰준다.
+    /// (EventBus는 동기 발행이라 이 프레임에 채워진 뒤 다음 프레임에 씬이 전환된다.)
+    /// </summary>
+    private void OnSessionCompleted(BrushingSessionCompletedEvent e)
+    {
+        SetFill(1f);
+        float total = _routineTotalSeconds > 0f ? _routineTotalSeconds : e.targetTotal;
+        SetTime(total, total);
     }
 
     /// <summary>
@@ -131,7 +149,8 @@ public class BrushingHudView : MonoBehaviour
     /// <summary>진행 중 → 전체 양치 진행도로 진행바 + 타이머 갱신.</summary>
     private void OnProgress(RoutineProgressEvent e)
     {
-        // 진행바 = 전체 경과 / 전체 목표(3분). 양치를 멈추면 totalElapsed가 안 늘어 진행바도 멈춘다.
+        _routineTotalSeconds = e.totalSeconds;
+        // 진행바 = 전체 경과 / 전체 목표. 양치를 멈추면 totalElapsed가 안 늘어 진행바도 멈춘다.
         float ratio = e.totalSeconds > 0f ? e.totalElapsed / e.totalSeconds : 0f;
         SetFill(ratio);
         SetTime(e.totalElapsed, e.totalSeconds);

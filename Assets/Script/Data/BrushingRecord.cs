@@ -14,6 +14,12 @@ public class BrushingRecord
     /// </summary>
     public string id;
 
+    /// <summary>
+    /// 이 기록을 만든 아이 프로필 id(ChildProfile.id). 아이별 기록 분리·필터링용.
+    /// 과거(이 필드 도입 전) 기록은 비어 있으며, 통계에서 '첫 아이' 것으로 간주한다(BrushingStats.ForChild).
+    /// </summary>
+    public string childId;
+
     /// <summary>양치를 진행한 시각 — ISO 8601 (예: 2026-06-01T21:30:00.0000000+09:00).</summary>
     public string recordedAt;
 

@@ -22,11 +22,11 @@ public class BrushingSession : MonoBehaviour
     // ─────────────────────────────────────────────────────────────
 
     [Header("Targets")]
-    [Tooltip("권장 전체 양치 시간 (초). 일반 가이드 = 3분 = 180초.")]
-    [SerializeField] private float targetTotalSeconds = 180f;
+    [Tooltip("권장 전체 양치 시간 (초). 현재 30초.")]
+    [SerializeField] private float targetTotalSeconds = 30f;
 
-    [Tooltip("zone당 권장 시간 (초). 5-zone 균등이면 targetTotalSeconds / 5 = 36초.")]
-    [SerializeField] private float targetPerZoneSeconds = 36f;
+    [Tooltip("zone당 권장 시간 (초). 5-zone 균등이면 targetTotalSeconds / 5 = 6초.")]
+    [SerializeField] private float targetPerZoneSeconds = 6f;
 
     [Header("Behavior")]
     [Tooltip("씬 활성화(OnEnable) 시 자동으로 세션 시작. false면 외부에서 StartSession() 호출 필요.")]
@@ -35,8 +35,8 @@ public class BrushingSession : MonoBehaviour
     [Tooltip("모든 zone이 zone별 목표에 도달하고 전체 시간도 목표 이상이면 자동 종료. false면 외부 EndSession() 호출 필요.")]
     [SerializeField] private bool autoEndOnTargetReached = true;
 
-    [Tooltip("세션 시작 후 이 시간(초, 벽시계 기준)이 지나면 무조건 자동 종료. 3분 = 180초. 0이면 시간 기반 자동 종료 안 함.")]
-    [SerializeField] private float autoEndAfterSeconds = 180f;
+    [Tooltip("세션 시작 후 이 시간(초, 벽시계 기준)이 지나면 무조건 자동 종료. 현재 30초. 0이면 시간 기반 자동 종료 안 함.")]
+    [SerializeField] private float autoEndAfterSeconds = 30f;
 
     [Tooltip("Tick 이벤트 발행 주기 (초). 작을수록 UI 부드러움, 크면 GC 절약. 0.1초 권장.")]
     [SerializeField, Range(0f, 1f)] private float tickInterval = 0.1f;

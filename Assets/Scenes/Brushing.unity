@@ -995,6 +995,7 @@ GameObject:
   - component: {fileID: 607209670}
   - component: {fileID: 607209669}
   - component: {fileID: 607209672}
+  - component: {fileID: 607209673}
   m_Layer: 0
   m_Name: Close
   m_TagString: Untagged
@@ -1066,6 +1067,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &607209673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607209667}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 971a88af58a0a42de9b74adc31af7261, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &607209670
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1338,6 +1351,7 @@ RectTransform:
   m_Children:
   - {fileID: 1832016297}
   - {fileID: 234819478}
+  - {fileID: 841201220}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1370,6 +1384,98 @@ MonoBehaviour:
   onBrushingFinished:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &841201219
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 841201220}
+  - component: {fileID: 841201222}
+  - component: {fileID: 841201221}
+  - component: {fileID: 841201223}
+  m_Layer: 0
+  m_Name: BubbleOverlay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &841201220
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841201219}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 800026911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &841201221
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841201219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Texture: {fileID: 0}
+  m_UVRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+--- !u!222 &841201222
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841201219}
+  m_CullTransparentMesh: 1
+--- !u!114 &841201223
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841201219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 868cc13720d982a44bcfaaacb9b885af, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ParticleOverlay
+  particlePrefab: {fileID: 15529475388378026, guid: cbe89ce7910a7be4ebda096dc0bbc986, type: 3}
+  stageLayer: ParticleStage
+  rtWidth: 1080
+  rtHeight: 2160
+  orthographicSize: 5
+  emitterLocalPosition: {x: 0, y: -5.2, z: 0}
+  forceEmit: 0
 --- !u!21 &842060010
 Material:
   serializedVersion: 8
@@ -3224,11 +3330,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eaa76bccfc5e042f1928868057c97c63, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BrushingSession
-  targetTotalSeconds: 30
-  targetPerZoneSeconds: 6
+  targetTotalSeconds: 60
+  targetPerZoneSeconds: 12
   autoStartOnEnable: 1
   autoEndOnTargetReached: 1
-  autoEndAfterSeconds: 30
+  autoEndAfterSeconds: 60
   tickInterval: 0.1
   logSessionEvents: 0
   debugAllowSkip: 1

@@ -441,9 +441,18 @@ MonoBehaviour:
   brushingSceneName: Brushing
   mainMenuPrefab: {fileID: 5387374471802995068, guid: 2053c9004b055c246b6e72f9cec8384b, type: 3}
   brushingFinishPrefab: {fileID: 1892007969210588317, guid: 3d095883751f2b64c8085c5d840d9e17, type: 3}
+  brushingReportPrefab: {fileID: 7995648160208272991, guid: a648aab4413cb6b4ca19554f8db19f3a, type: 3}
   reportPrefab: {fileID: 7995648160208272991, guid: 19c037da9eea92b45b9b922563d1d8a4, type: 3}
   settingPrefab: {fileID: 7995648160208272991, guid: acf0e34965072cd48b777c5bb64a78bb, type: 3}
+  buddyPrefab: {fileID: 5387374471802995068, guid: 5272c85893d39ab4e9def0ff71b9dee3, type: 3}
+  initMenuPrefab: {fileID: 7995648160208272991, guid: 1da19967593bfb144b2f8a403f66760e, type: 3}
+  clausePrefab: {fileID: 7995648160208272991, guid: deb2766d833e3ed41a02a85ebf2bce7d, type: 3}
+  parentInfoPrefab: {fileID: 7995648160208272991, guid: f2340c29f22de824999b07ecdbfe2db7, type: 3}
+  pinInputPrefab: {fileID: 7995648160208272991, guid: 65877014eed307343bbc912441dae203, type: 3}
+  addChildPrefab: {fileID: 7995648160208272991, guid: f50716f602a03e842adf6010a89f4584, type: 3}
   showMenuOnStart: 1
+  skipOnboarding: 0
+  forceOnboarding: 0
 --- !u!4 &2035685798
 Transform:
   m_ObjectHideFlags: 0

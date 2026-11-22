@@ -39,9 +39,13 @@ public class BrushingRecordWriter : MonoBehaviour
 
         // 2) 기록 레코드 구성 — 진행 시각 + 최종 점수 포함.
         var now = DateTimeOffset.Now;
+        // 이 세션을 누구(활성 아이)로 기록할지 — 아이별 리포트 분리용.
+        var activeChild = UserMng.ins != null ? UserMng.ins.ActiveChild : null;
+
         var record = new BrushingRecord
         {
             // id는 현재 단계에서 비워둔다(DB 전환 시 PK 발급). 정렬은 recordedAtUnix 사용.
+            childId              = activeChild != null ? activeChild.id : "",
             recordedAt           = now.ToString("o"),
             recordedAtUnix       = now.ToUnixTimeSeconds(),
             timeSlot             = BrushingTimeSlot.Korean(now),

@@ -45,7 +45,20 @@ public class JsonBrushingRecordRepository : IBrushingRecordRepository
 
         var file = ReadFile();
         file.records.Add(record);
+        WriteFile(file);
+    }
 
+    /// <summary>
+    /// 레코드 목록을 파일에 통째로 덮어쓴다(개별 Save 반복 시의 O(n²) 파일 IO 회피 — 더미 시드 등 대량 저장용).
+    /// 기존 파일 내용은 대체된다.
+    /// </summary>
+    public void SaveAll(List<BrushingRecord> records)
+    {
+        WriteFile(new RecordFile { records = records ?? new List<BrushingRecord>() });
+    }
+
+    private void WriteFile(RecordFile file)
+    {
         // prettyPrint=true: 사람이 열어보기 쉽게(검증 단계). 용량 민감해지면 false로.
         var json = JsonUtility.ToJson(file, true);
 

@@ -23,8 +23,8 @@ public class BrushingRoutine : ScriptableObject
         [Min(0f)] public float seconds = 0f;
     }
 
-    [Tooltip("전체 양치 목표 시간(초). 기본 180초 = 3분.")]
-    [SerializeField, Min(0f)] private float totalSeconds = 180f;
+    [Tooltip("전체 양치 목표 시간(초). 현재 30초.")]
+    [SerializeField, Min(0f)] private float totalSeconds = 30f;
 
     [Tooltip("닦는 순서. 위에서 아래로 진행한다. 같은 구역을 여러 번 넣어도 된다. " +
              "★ 순서/시간은 여기서 자유롭게 수정 — 임의 기본값은 앞니→좌상→좌하→우상→우하.")]

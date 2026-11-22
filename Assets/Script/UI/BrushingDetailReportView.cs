@@ -1,0 +1,349 @@
+using System;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// 브러싱 디테일 리포트 화면의 데이터 바인딩 + 달력 연동. BrushingDetailReport 프리팹 루트(Canvas)에 붙인다.
+///
+/// 동작:
+///   1) Top/Calander 버튼 → Calander(기간 선택) 프리팹을 팝업으로 띄움.
+///      Calander의 Top/Back을 누르면(Closed 콜백) 선택 범위를 읽어 팝업을 닫고 리포트를 갱신.
+///   2) Total score: 선택 기간 평균 점수를 Score 텍스트에, Progress/Fill의 fillAmount(가로)로 시각화.
+///   3) Coordinate report: 기간 평균 좌우/상하 균형을 Pointer 위치 + LR/UB Progress(Left/Right fillAmount)로 표시.
+///
+/// 자식 참조는 경로로 자동 탐색하므로, 프리팹에는 이 컴포넌트와 'calendarPrefab'(Calander)만 지정하면 된다.
+/// 균형 비율: 좌=왼쪽 어금니, 우=오른쪽, 상=윗니, 하=아랫니(앞니 제외) — BrushingStats.Period 참고.
+/// (UB Progress의 Left=상(위), Right=하(아래)로 매핑한다.)
+/// </summary>
+[DisallowMultipleComponent]
+public class BrushingDetailReportView : MonoBehaviour
+{
+    [Header("달력 팝업")]
+    [Tooltip("기간 선택용 Calander 프리팹.")]
+    [SerializeField] private GameObject calendarPrefab;
+    [SerializeField] private Button calendarButton;   // Top/Calander
+
+    [Header("참조 (비우면 경로로 자동 탐색)")]
+    [SerializeField] private TMP_Text titleText;       // Top/Back/TextInfo/hello ment — "{아이 이름}, 기간별 리포트"
+    [SerializeField] private TMP_Text dateText;        // Top/Back/TextInfo/Date — 선택 기간
+    [SerializeField] private TMP_Text scoreText;       // Total score/Score — 평균 점수
+    [SerializeField] private Image scoreFill;          // Total score/Progress/Fill — 점수 바
+    [SerializeField] private RectTransform pointer;    // Coordinate/Pointer
+    [SerializeField] private RectTransform coordinate; // Coordinate (평면)
+    [SerializeField] private Image lrLeft, lrRight;    // LR Progress/Left, Right
+    [SerializeField] private Image ubLeft, ubRight;    // UB Progress/Left(상), Right(하)
+    [SerializeField] private TMP_Text balanceStateText;// Coordinate report/Top/State/Text (TMP)
+    [SerializeField] private TMP_Text lrRatioText;     // LR Progress 위 "좌(n) / 우(m)"
+    [SerializeField] private TMP_Text ubRatioText;     // UB Progress 위 "상(n) / 하(m)"
+
+    private const string PathCalendarBtn = "RealSpace/Top/Calander";
+    private const string PathBack    = "RealSpace/Top/Back";   // 뒤로가기 버튼(좌상단 화살표)
+    private const string PathTitle   = "RealSpace/Top/Back/TextInfo/hello ment";
+    private const string PathDate    = "RealSpace/Top/Back/TextInfo/Date";
+    private const string PathScore   = "RealSpace/Total score/Score";
+    private const string PathFill    = "RealSpace/Total score/Progress/Fill";
+    private const string PathPointer = "RealSpace/Coordinate report/Coordinate/Pointer";
+    private const string PathCoord   = "RealSpace/Coordinate report/Coordinate";
+    private const string PathLRLeft  = "RealSpace/Coordinate report/Progress/LR Progress/Left";
+    private const string PathLRRight = "RealSpace/Coordinate report/Progress/LR Progress/Right";
+    private const string PathUBLeft  = "RealSpace/Coordinate report/Progress/UB Progress/Left";
+    private const string PathUBRight = "RealSpace/Coordinate report/Progress/UB Progress/Right";
+    private const string PathState   = "RealSpace/Coordinate report/Top/State/Text (TMP)";
+    private const string PathLRText  = "RealSpace/Coordinate report/Progress/Text (TMP)";
+    private const string PathUBText  = "RealSpace/Coordinate report/Progress/Text (TMP) (1)";
+
+    // 아이 선택 슬롯 — 등록된 아이 수만큼 'Child slot'을 복제해 클릭으로 그 아이 리포트를 본다.
+    private const string PathSlotContent  = "RealSpace/ChildList/Viewport/Content";
+    private const string PathSlotTemplate = PathSlotContent + "/Child slot";
+    private const string SlotNamePath = "Text (TMP)";       // 이름 (위 텍스트)
+    private const string SlotAgePath  = "Text (TMP) (1)";   // 나이 (아래 텍스트)
+
+    private DateTime _from, _to;
+    private bool _hasPeriod;
+    private GameObject _calendarInstance;
+    private bool _calendarOpen;   // 달력을 띄우려고 리포트를 잠시 끈 상태인지
+
+    private Transform _slotContent;
+    private Transform _slotTemplate;
+    private Color _slotNormalColor = Color.white;
+    private readonly List<GameObject> _childSlots = new List<GameObject>();
+
+    private void Awake()
+    {
+        ResolveRefs();
+        if (calendarButton != null) calendarButton.onClick.AddListener(OpenCalendar);
+
+        // 좌상단 Back → 원래 화면인 BrushingFinish(양치 결과)로 복귀.
+        var back = OnboardingUtil.EnsureButton(transform.Find(PathBack));
+        if (back != null) back.onClick.AddListener(() => AppRouter.ins.ShowScreen(AppRouter.Screen.BrushingFinish));
+    }
+
+    private void OnEnable()
+    {
+        if (!_hasPeriod)
+        {
+            // 첫 표시 기본 기간 — 최근 7일.
+            _to = DateTime.Today;
+            _from = _to.AddDays(-6);
+            _hasPeriod = true;
+        }
+        Refresh();
+    }
+
+    // 리포트가 '진짜로' 닫힐 때(탭 전환 등)만 달력 정리. 달력 표시용으로 잠시 끈 경우엔 유지.
+    private void OnDisable() { if (!_calendarOpen) CloseCalendar(); }
+
+    // 화면이 완전히 파괴(탭 전환 등)되면 열려 있던 달력도 같이 정리.
+    private void OnDestroy() => CloseCalendar();
+
+    // ── 참조 ──────────────────────────────────────────────────────
+
+    private void ResolveRefs()
+    {
+        if (calendarButton == null) calendarButton = FindComp<Button>(PathCalendarBtn);
+        if (titleText == null) titleText = FindComp<TMP_Text>(PathTitle);
+        if (dateText == null)  dateText  = FindComp<TMP_Text>(PathDate);
+        if (scoreText == null) scoreText = FindComp<TMP_Text>(PathScore);
+        if (scoreFill == null) scoreFill = FindComp<Image>(PathFill);
+        if (pointer == null)    pointer    = FindRect(PathPointer);
+        if (coordinate == null) coordinate = FindRect(PathCoord);
+        if (lrLeft == null)  lrLeft  = FindComp<Image>(PathLRLeft);
+        if (lrRight == null) lrRight = FindComp<Image>(PathLRRight);
+        if (ubLeft == null)  ubLeft  = FindComp<Image>(PathUBLeft);
+        if (ubRight == null) ubRight = FindComp<Image>(PathUBRight);
+        if (balanceStateText == null) balanceStateText = FindComp<TMP_Text>(PathState);
+        if (lrRatioText == null) lrRatioText = FindComp<TMP_Text>(PathLRText);
+        if (ubRatioText == null) ubRatioText = FindComp<TMP_Text>(PathUBText);
+
+        if (_slotContent == null) _slotContent = transform.Find(PathSlotContent);
+        if (_slotTemplate == null)
+        {
+            _slotTemplate = transform.Find(PathSlotTemplate);
+            if (_slotTemplate != null)
+            {
+                var img = _slotTemplate.GetComponent<Image>();
+                if (img != null) _slotNormalColor = img.color;
+                _slotTemplate.gameObject.SetActive(false);   // 복제용 프로토타입 — 숨긴다.
+            }
+        }
+    }
+
+    private T FindComp<T>(string path) where T : Component
+    {
+        var t = transform.Find(path);
+        return t != null ? t.GetComponent<T>() : null;
+    }
+
+    private RectTransform FindRect(string path)
+    {
+        var t = transform.Find(path);
+        return t as RectTransform;
+    }
+
+    // ── 달력 팝업 ─────────────────────────────────────────────────
+
+    private void OpenCalendar()
+    {
+        if (_calendarInstance != null) return;   // 이미 열려 있음
+        if (calendarPrefab == null)
+        {
+            Debug.LogError("[BrushingDetailReportView] calendarPrefab이 연결되지 않았다 — 인스펙터에서 Calander 프리팹을 지정하라.");
+            return;
+        }
+
+        _calendarInstance = Instantiate(calendarPrefab);
+
+        // Overlay Canvas 정렬 순서만 정리(리포트가 꺼져 있어도 단독으로 보이도록).
+        var canvas = _calendarInstance.GetComponent<Canvas>();
+        if (canvas != null) { canvas.overrideSorting = true; canvas.sortingOrder = 100; }
+
+        var picker = _calendarInstance.GetComponentInChildren<CalendarRangePicker>(true);
+        if (picker == null)
+        {
+            Debug.LogError("[BrushingDetailReportView] Calander 프리팹에서 CalendarRangePicker를 찾지 못했다.");
+            Destroy(_calendarInstance);
+            _calendarInstance = null;
+            return;
+        }
+        picker.Closed += OnCalendarClosed;
+
+        // 직전 선택(첫 표시 때는 OnEnable의 기본 기간=최근 7일)을 달력에 복원 — 다시 열어도 그대로 보이게.
+        if (_hasPeriod) picker.SetSelectedRange(_from, _to);
+
+        // 달력이 열리는 동안 리포트 창은 잠시 끈다. (_calendarOpen을 먼저 켜서 OnDisable이 달력을 파괴하지 않게)
+        _calendarOpen = true;
+        gameObject.SetActive(false);
+    }
+
+    private void OnCalendarClosed(CalendarRangePicker picker)
+    {
+        // 시작만 있어도(단일 날짜) 그 하루를 기간으로 인정.
+        if (picker.RangeStart.HasValue)
+        {
+            _from = picker.RangeStart.Value.Date;
+            _to = (picker.RangeEnd ?? picker.RangeStart.Value).Date;
+            _hasPeriod = true;
+        }
+
+        _calendarOpen = false;
+        CloseCalendar();              // 달력 닫기(파괴)
+        gameObject.SetActive(true);   // 리포트 창 다시 켜기 → OnEnable에서 Refresh로 갱신
+    }
+
+    private void CloseCalendar()
+    {
+        if (_calendarInstance == null) return;
+        var picker = _calendarInstance.GetComponentInChildren<CalendarRangePicker>(true);
+        if (picker != null) picker.Closed -= OnCalendarClosed;
+        Destroy(_calendarInstance);
+        _calendarInstance = null;
+    }
+
+    // ── 갱신 ──────────────────────────────────────────────────────
+
+    private void Refresh()
+    {
+        var records = LoadRecords();
+        var rep = BrushingStats.Period(records, _from, _to);
+
+        // 제목 "@@" 자리에 현재 보고 있는 아이 이름을 넣는다 — "{이름}, 기간별 리포트".
+        if (titleText != null)
+        {
+            var active = UserMng.ins != null ? UserMng.ins.ActiveChild : null;
+            string childName = active != null ? active.name : null;
+            titleText.text = string.IsNullOrEmpty(childName) ? "기간별 리포트" : $"{childName}, 기간별 리포트";
+        }
+
+        if (dateText != null) dateText.text = FormatRange(_from, _to);
+
+        // 통합 점수 + 진행 바.
+        if (scoreText != null) scoreText.text = Mathf.RoundToInt(rep.avgScore).ToString();
+        if (scoreFill != null)
+        {
+            scoreFill.type = Image.Type.Filled;
+            scoreFill.fillMethod = Image.FillMethod.Horizontal;
+            scoreFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            scoreFill.fillAmount = Mathf.Clamp01(rep.avgScore / 100f);
+        }
+
+        // 좌우/상하 균형 바 (Left/Right fillAmount, 합=1이면 가운데서 만남).
+        if (lrLeft != null)  lrLeft.fillAmount  = rep.leftRatio;
+        if (lrRight != null) lrRight.fillAmount = rep.rightRatio;
+        if (ubLeft != null)  ubLeft.fillAmount  = rep.upRatio;
+        if (ubRight != null) ubRight.fillAmount = rep.downRatio;
+
+        UpdatePointer(rep);
+        UpdateBalanceState(rep);
+        UpdateRatioTexts(rep);
+        BuildChildSlots();
+    }
+
+    // ── 아이 선택 슬롯 ────────────────────────────────────────────
+
+    /// <summary>등록된 아이 수만큼 'Child slot'을 복제해 이름·나이를 넣고, 활성 아이를 강조한다. 클릭 → 그 아이 리포트.</summary>
+    private void BuildChildSlots()
+    {
+        if (_slotContent == null || _slotTemplate == null) return;
+
+        foreach (var go in _childSlots) if (go != null) Destroy(go);
+        _childSlots.Clear();
+
+        var children = UserMng.ins != null ? UserMng.ins.Children : null;
+        var active = UserMng.ins != null ? UserMng.ins.ActiveChild : null;
+        if (children == null) return;
+
+        for (int i = 0; i < children.Count; i++)
+        {
+            var child = children[i];
+            var go = Instantiate(_slotTemplate.gameObject, _slotContent);
+            go.SetActive(true);
+            go.name = "Child slot_" + child.id;
+            _childSlots.Add(go);
+
+            var nameText = go.transform.Find(SlotNamePath)?.GetComponent<TMP_Text>();
+            if (nameText != null) nameText.text = child.name;
+
+            var ageText = go.transform.Find(SlotAgePath)?.GetComponent<TMP_Text>();
+            if (ageText != null) ageText.text = child.age > 0 ? $"{child.age}세" : "";
+
+            // 활성 아이 슬롯은 원래 색, 나머지는 흐리게 — 지금 보는 아이를 구분.
+            bool isActive = active != null && child.id == active.id;
+            var slotImg = go.GetComponent<Image>();
+            if (slotImg != null)
+            {
+                var c = _slotNormalColor;
+                if (!isActive) c.a *= 0.45f;
+                slotImg.color = c;
+            }
+
+            string id = child.id;   // 클로저 캡처용 지역 복사.
+            var btn = OnboardingUtil.EnsureButton(go.transform);
+            if (btn != null) btn.onClick.AddListener(() => OnSelectChildSlot(id));
+        }
+    }
+
+    private void OnSelectChildSlot(string childId)
+    {
+        if (UserMng.ins == null) return;
+        UserMng.ins.SetActiveChild(childId);
+        Refresh();   // 활성 아이 변경 → 그 아이 기록으로 리포트 재구성 + 슬롯 강조 갱신.
+    }
+
+    /// <summary>LR/UB Progress 위 텍스트에 좌우·상하 비율을 정수 %(합 100)로 적는다.</summary>
+    private void UpdateRatioTexts(PeriodReport rep)
+    {
+        if (lrRatioText != null)
+        {
+            int left = Mathf.Clamp(Mathf.RoundToInt(rep.leftRatio * 100f), 0, 100);
+            int right = 100 - left;   // 합이 항상 100이 되도록 한쪽에서 차감.
+            lrRatioText.text = $"좌({left}) / 우({right})";
+        }
+        if (ubRatioText != null)
+        {
+            int up = Mathf.Clamp(Mathf.RoundToInt(rep.upRatio * 100f), 0, 100);
+            int down = 100 - up;
+            ubRatioText.text = $"상({up}) / 하({down})";
+        }
+    }
+
+    private void UpdatePointer(PeriodReport rep)
+    {
+        if (pointer == null || coordinate == null) return;
+
+        // Coordinate 중앙 기준 가동 범위(포인터가 평면 밖으로 안 나가도록).
+        float maxX = Mathf.Max(0f, (coordinate.rect.width  - pointer.rect.width)  / 2f);
+        float maxY = Mathf.Max(0f, (coordinate.rect.height - pointer.rect.height) / 2f);
+
+        // 왼쪽을 더 닦았으면 왼쪽(-x), 윗니를 더 닦았으면 위(+y)로.
+        float x = (rep.rightRatio - rep.leftRatio) * maxX;
+        float y = (rep.upRatio - rep.downRatio) * maxY;
+        pointer.anchoredPosition = new Vector2(x, y);
+    }
+
+    private void UpdateBalanceState(PeriodReport rep)
+    {
+        if (balanceStateText == null) return;
+        if (rep.count == 0) { balanceStateText.text = "기록 없음"; return; }
+
+        float lrDev = Mathf.Abs(rep.leftRatio - 0.5f);
+        float udDev = Mathf.Abs(rep.upRatio - 0.5f);
+        balanceStateText.text = (lrDev < 0.1f && udDev < 0.1f) ? "균형 좋음" : "불균형";
+    }
+
+    // 활성 아이의 기록만 — 아이별 리포트. (childId 없는 과거 기록은 첫 아이 것으로 본다)
+    private List<BrushingRecord> LoadRecords()
+    {
+        try { return ChildRecords.ActiveChildRecords(new JsonBrushingRecordRepository().LoadAll()); }
+        catch { return new List<BrushingRecord>(); }
+    }
+
+    private static string FormatRange(DateTime from, DateTime to)
+    {
+        if (from.Date == to.Date) return $"{from.Month}월 {from.Day}일";
+        return (from.Year == to.Year && from.Month == to.Month)
+            ? $"{from.Month}월 {from.Day}일 - {to.Day}일"
+            : $"{from.Month}월 {from.Day}일 - {to.Month}월 {to.Day}일";
+    }
+}

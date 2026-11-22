@@ -25,6 +25,13 @@ public class AppRouter : Singleton<AppRouter>
         None,
         MainMenu,
         BrushingFinish,
+        BrushingReport,   // 결과 화면의 '리포트 보기' → 방금 양치한 세션 리포트
+        // ── 온보딩(회원가입) 흐름 ──
+        InitMenu,      // 시작: Create Account → Clause
+        Clause,        // 약관 동의 → ParentInfo
+        ParentInfo,    // 보호자 이름·호칭 → PinInput
+        PinInput,      // 보호자 PIN 설정 → AddChild
+        AddChild,      // 아이 정보 → MainMenu(온보딩 완료)
     }
 
     [Header("씬 이름 (Build Settings에 등록돼 있어야 함)")]
@@ -36,17 +43,34 @@ public class AppRouter : Singleton<AppRouter>
     [SerializeField] private GameObject mainMenuPrefab;
     [Tooltip("양치 결과(브러싱 피니쉬) 화면 프리팹(루트 Canvas).")]
     [SerializeField] private GameObject brushingFinishPrefab;
+    [Tooltip("브러싱 리포트(한 세션 상세) 화면 프리팹 — 결과 화면의 '리포트 보기'에서 띄운다.")]
+    [SerializeField] private GameObject brushingReportPrefab;
 
     [Header("바텀 탭 화면 프리팹 (Assets/Prefabs/UI/) — 각 탭이 가리키는 화면")]
     [Tooltip("Report 탭 화면 프리팹 (BrushingDetailReport).")]
     [SerializeField] private GameObject reportPrefab;
     [Tooltip("Setting 탭 화면 프리팹 (Setting).")]
     [SerializeField] private GameObject settingPrefab;
-    // Home 탭은 별도 프리팹 없이 mainMenuPrefab을 그대로 쓴다. Buddy(바디) 탭은 사용하지 않는다.
+    [Tooltip("Buddy(버디) 탭 화면 프리팹 (Buddy) — 아이 모드에서 사용.")]
+    [SerializeField] private GameObject buddyPrefab;
+    // Home 탭은 별도 프리팹 없이 mainMenuPrefab을 그대로 쓴다.
+
+    [Header("온보딩 화면 프리팹 (Assets/Prefabs/UI/)")]
+    [SerializeField] private GameObject initMenuPrefab;   // InitMenu
+    [SerializeField] private GameObject clausePrefab;     // Clause
+    [SerializeField] private GameObject parentInfoPrefab; // ParentInfo
+    [SerializeField] private GameObject pinInputPrefab;   // PinInput
+    [SerializeField] private GameObject addChildPrefab;   // AddChild
 
     [Header("동작")]
-    [Tooltip("앱 최초 시작 시(메인 씬) 자동으로 메뉴 화면을 띄운다.")]
+    [Tooltip("앱 최초 시작 시(메인 씬) 자동으로 시작 화면을 띄운다.")]
     [SerializeField] private bool showMenuOnStart = true;
+
+    [Header("디버그")]
+    [Tooltip("켜면 온보딩(회원가입)을 건너뛰고 바로 메인 메뉴로 시작한다 — 개발 편의용.")]
+    [SerializeField] private bool skipOnboarding = false;
+    [Tooltip("켜면 온보딩 완료 여부와 무관하게 항상 온보딩부터 시작한다 — 온보딩 플로우 반복 테스트용. (skip이 우선)")]
+    [SerializeField] private bool forceOnboarding = false;
 
     // 다음 메인 씬 로드 시 띄울 화면. 씬 로드 콜백에서 읽고 소비한다.
     private Screen pendingScreen = Screen.None;
@@ -95,23 +119,46 @@ public class AppRouter : Singleton<AppRouter>
         EventBus.Subscribe<BrushingSessionCompletedEvent>(OnBrushingCompleted);
         // 점수 산출 결과 → 결과 화면에 주입할 수 있도록 캐시.
         EventBus.Subscribe<BrushingScoredEvent>(OnScored);
+        // 앱 모드(아이/보호자) 전환 → 탭 구성이 달라지므로 현재 탭 화면을 다시 띄워 갱신.
+        EventBus.Subscribe<AppModeChangedEvent>(OnAppModeChanged);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<BrushingSessionCompletedEvent>(OnBrushingCompleted);
         EventBus.Unsubscribe<BrushingScoredEvent>(OnScored);
+        EventBus.Unsubscribe<AppModeChangedEvent>(OnAppModeChanged);
+    }
+
+    // 모드가 바뀌면 탭 구성(아이=홈·버디·설정 / 보호자=홈·리포트·설정)이 달라진다.
+    // 현재 떠 있는 탭이 새 모드에서 사라지면 홈으로, 아니면 같은 탭을 다시 띄워 탭바를 새 구성으로 갱신.
+    private void OnAppModeChanged(AppModeChangedEvent e)
+    {
+        // 탭 화면이 떠 있는 메인 씬에서만 의미가 있다(양치 씬 등에서는 무시).
+        if (currentScreenInstance == null) return;
+        if (SceneManager.GetActiveScene().name != mainSceneName) return;
+
+        var tab = BottomTabBar.IsTabEnabledForMode(CurrentTab, e.mode) ? CurrentTab : BottomTab.Home;
+        ShowTab(tab);
     }
 
     private void Start()
     {
-        // 앱이 메인 씬에서 시작된 경우, 첫 메뉴를 띄운다.
+        // 앱이 메인 씬에서 시작된 경우, 첫 화면을 띄운다(온보딩 미완료면 InitMenu).
         // (이미 pendingScreen이 잡혀 있으면 그쪽이 우선 — 씬 로드 콜백이 처리.)
         if (showMenuOnStart && pendingScreen == Screen.None &&
             SceneManager.GetActiveScene().name == mainSceneName)
         {
-            ShowScreen(Screen.MainMenu);
+            ShowScreen(StartScreen());
         }
+    }
+
+    /// <summary>앱 시작/메인 진입 시 띄울 첫 화면 — 온보딩 미완료면 InitMenu, 완료(또는 디버그 skip)면 MainMenu.</summary>
+    private Screen StartScreen()
+    {
+        if (skipOnboarding) return Screen.MainMenu;       // 디버그: 온보딩 건너뛰기(우선)
+        if (forceOnboarding) return Screen.InitMenu;      // 디버그: 항상 온보딩부터(반복 테스트)
+        return UserMng.ins.OnboardingComplete ? Screen.MainMenu : Screen.InitMenu;
     }
 
     private void OnDestroy()
@@ -181,7 +228,7 @@ public class AppRouter : Singleton<AppRouter>
         if (pendingScreen != Screen.None)
             ConsumePending();
         else if (showMenuOnStart)
-            ShowScreen(Screen.MainMenu);
+            ShowScreen(StartScreen());
     }
 
     private void ConsumePending()
@@ -214,11 +261,19 @@ public class AppRouter : Singleton<AppRouter>
         currentScreenInstance = Instantiate(prefab);
         currentScreenInstance.SetActive(true);
 
-        // 결과 화면이면 가장 최근 점수 결과를 주입한다.
-        if (screen == Screen.BrushingFinish && hasResult)
+        // 결과/리포트 화면이면 가장 최근 점수 결과를 주입한다(방금 양치한 세션).
+        if (hasResult)
         {
-            var view = currentScreenInstance.GetComponentInChildren<BrushingFinishView>(true);
-            if (view != null) view.Bind(lastResult);
+            if (screen == Screen.BrushingFinish)
+            {
+                var view = currentScreenInstance.GetComponentInChildren<BrushingFinishView>(true);
+                if (view != null) view.Bind(lastResult);
+            }
+            else if (screen == Screen.BrushingReport)
+            {
+                var view = currentScreenInstance.GetComponentInChildren<BrushingReportView>(true);
+                if (view != null) view.Bind(lastResult);
+            }
         }
     }
 
@@ -228,6 +283,12 @@ public class AppRouter : Singleton<AppRouter>
         {
             case Screen.MainMenu:       return mainMenuPrefab;
             case Screen.BrushingFinish: return brushingFinishPrefab;
+            case Screen.BrushingReport: return brushingReportPrefab;
+            case Screen.InitMenu:       return initMenuPrefab;
+            case Screen.Clause:         return clausePrefab;
+            case Screen.ParentInfo:     return parentInfoPrefab;
+            case Screen.PinInput:       return pinInputPrefab;
+            case Screen.AddChild:       return addChildPrefab;
             default:                    return null;
         }
     }
@@ -269,8 +330,9 @@ public class AppRouter : Singleton<AppRouter>
         {
             case BottomTab.Home:    return mainMenuPrefab;   // 홈 = 메인 메뉴 화면
             case BottomTab.Report:  return reportPrefab;
+            case BottomTab.Buddy:   return buddyPrefab;
             case BottomTab.Setting: return settingPrefab;
-            default:                return null;             // Buddy(바디) 등 미사용 탭
+            default:                return null;
         }
     }
 }

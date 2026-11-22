@@ -9,6 +9,7 @@ using UnityEngine.UI;
 ///
 /// 담당:
 ///   1) 날짜(연도 제외 "M월 d일 요일요일") + 인사말("안녕, {이름}!") — 이름은 UserMng.ins.UserName(기본 하준).
+///      보호자 모드면 이름 자리에 보호자 이름(호칭 제외)을 쓰고, 인사말 옆에 '보호자 모드' 배지를 켠다.
 ///   2) To-do(아침/점심/저녁): 오늘 해당 시간대 양치 기록이 있으면 Checked를 완료 스프라이트로 + "HH:mm 완료",
 ///      없으면 미완료 스프라이트 + "오전 6시 ~ 오전 10시 양치 완료 예정" 식 안내.
 ///   3) 스코어: 이번 주(월~현재) 평균 점수 표시. 전주 평균 대비 상승=초록 유지/위 화살표,
@@ -23,6 +24,8 @@ public class MainMenuView : MonoBehaviour
     [Header("프로필 / 날짜 (비우면 경로로 자동 탐색)")]
     [SerializeField] private TMP_Text todayText;
     [SerializeField] private TMP_Text helloText;
+    [Tooltip("보호자 모드에서 인사말 바로 오른쪽에 붙는 '보호자 모드' 배지.")]
+    [SerializeField] private RectTransform guardianBadge;
 
     [Header("To-do List")]
     [SerializeField] private Transform todolistRoot;
@@ -43,9 +46,17 @@ public class MainMenuView : MonoBehaviour
     [SerializeField] private TMP_Text alertZoneText;   // Teeth location (부족 구역명)
     [SerializeField] private TMP_Text alertReportText; // report (상태 메시지)
 
+    [Header("모드별 패널 (비우면 경로로 자동 탐색)")]
+    [Tooltip("아이 모드에서 표시 — 양치 시작 패널.")]
+    [SerializeField] private GameObject brushingStartPanel;
+    [Tooltip("보호자 모드에서 표시 — 아이 목록(가로 스크롤).")]
+    [SerializeField] private GameObject childListPanel;
+
     // 루트(Mainmenu) 기준 상대 경로
     private const string PathToday    = "RealSpace/Top/Profile/TextInfo/Today";
     private const string PathHello    = "RealSpace/Top/Profile/TextInfo/hello ment";
+    private const string PathGuardianBadge = PathHello + "/Guardian Badge";
+    private const float  GuardianBadgeGap  = 20f;   // 인사말 끝 ~ 배지 사이 간격
     private const string PathTodolist = "RealSpace/SubPannels/Sub pannel/Todolist";
     private const string PathScore    = "RealSpace/SubPannels/Sub pannel (1)/Score";
     private const string PathLastWeek = "RealSpace/SubPannels/Sub pannel (1)/Last week/Score";
@@ -55,6 +66,13 @@ public class MainMenuView : MonoBehaviour
     private const string PathAlertBadge  = "RealSpace/Alert report/Amount Arrow";
     private const string PathAlertZone   = "RealSpace/Alert report/TextArea/Teeth location";
     private const string PathAlertReport = "RealSpace/Alert report/TextArea/report";
+
+    private const string PathBrushingPanel    = "RealSpace/Brushing start pannel";
+    private const string PathChildList        = "RealSpace/ChildList";
+    private const string PathChildSlotContent = "RealSpace/ChildList/Viewport/Content";
+    private const string PathChildSlotTemplate = PathChildSlotContent + "/Child slot";
+    private const string ChildSlotNamePath = "Text (TMP)";       // 이름 (위 텍스트)
+    private const string ChildSlotAgePath  = "Text (TMP) (1)";   // 나이 (아래 텍스트)
 
     // Todo 항목 내부 자식 경로
     private const string ChildChecked  = "Checked";
@@ -79,6 +97,12 @@ public class MainMenuView : MonoBehaviour
 
     private bool _captured;
 
+    // 보호자 모드 아이 목록(가로 슬롯) 런타임 상태.
+    private Transform _childSlotContent;
+    private Transform _childSlotTemplate;
+    private Color _childSlotNormalColor = Color.white;
+    private readonly List<GameObject> _childSlots = new List<GameObject>();
+
     private void Awake()
     {
         ResolveRefs();
@@ -93,6 +117,7 @@ public class MainMenuView : MonoBehaviour
     {
         if (todayText == null) todayText = FindTMP(PathToday);
         if (helloText == null) helloText = FindTMP(PathHello);
+        if (guardianBadge == null) guardianBadge = transform.Find(PathGuardianBadge) as RectTransform;
         if (todolistRoot == null) todolistRoot = transform.Find(PathTodolist);
         if (scoreText == null) scoreText = FindTMP(PathScore);
         if (deltaText == null) deltaText = FindTMP(PathDelta);
@@ -118,6 +143,25 @@ public class MainMenuView : MonoBehaviour
         }
         if (alertZoneText == null) alertZoneText = FindTMP(PathAlertZone);
         if (alertReportText == null) alertReportText = FindTMP(PathAlertReport);
+
+        if (brushingStartPanel == null)
+        {
+            var t = transform.Find(PathBrushingPanel);
+            if (t != null) brushingStartPanel = t.gameObject;
+        }
+        if (childListPanel == null)
+        {
+            var t = transform.Find(PathChildList);
+            if (t != null) childListPanel = t.gameObject;
+        }
+        _childSlotContent = transform.Find(PathChildSlotContent);
+        _childSlotTemplate = transform.Find(PathChildSlotTemplate);
+        if (_childSlotTemplate != null)
+        {
+            var img = _childSlotTemplate.GetComponent<Image>();
+            if (img != null) _childSlotNormalColor = img.color;
+            _childSlotTemplate.gameObject.SetActive(false);   // 복제용 프로토타입 — 숨긴다.
+        }
     }
 
     private TMP_Text FindTMP(string path)
@@ -146,12 +190,77 @@ public class MainMenuView : MonoBehaviour
     private void Refresh()
     {
         var now = DateTime.Now;
+        ApplyMode();           // 모드별 패널(양치 시작 ↔ 아이 목록) 토글.
         RefreshProfile(now);
 
-        var records = LoadRecords();
+        var records = LoadRecords();   // 활성 아이 기준 — SubPannels/Alert가 선택된 아이 데이터를 표시.
         RefreshTodo(records, now);
         RefreshScore(records, now);
         RefreshAlert(records, now);
+    }
+
+    // ── 모드별 구성 (아이 / 보호자) ───────────────────────────────
+
+    /// <summary>
+    /// 보호자 모드: 양치 시작 패널을 끄고 아이 목록을 켜 아이들을 보여준다(클릭으로 아이 전환).
+    /// 아이 모드: 아이 목록을 끄고 양치 시작 패널을 켠다(기존 메인 메뉴).
+    /// 하단 SubPannels/Alert report는 두 모드 모두 '선택된 아이' 데이터를 그대로 표시한다.
+    /// </summary>
+    private void ApplyMode()
+    {
+        bool guardian = UserMng.ins != null && UserMng.ins.IsGuardian;
+        if (brushingStartPanel != null) brushingStartPanel.SetActive(!guardian);
+        if (childListPanel != null) childListPanel.SetActive(guardian);
+        if (guardian) BuildChildList();
+    }
+
+    /// <summary>보호자 모드 아이 목록 — 등록된 아이 수만큼 'Child slot'을 복제, 활성 아이 강조, 클릭 시 아이 전환.</summary>
+    private void BuildChildList()
+    {
+        if (_childSlotContent == null || _childSlotTemplate == null) return;
+
+        foreach (var go in _childSlots) if (go != null) Destroy(go);
+        _childSlots.Clear();
+
+        var children = UserMng.ins != null ? UserMng.ins.Children : null;
+        var active = UserMng.ins != null ? UserMng.ins.ActiveChild : null;
+        if (children == null) return;
+
+        for (int i = 0; i < children.Count; i++)
+        {
+            var child = children[i];
+            var go = Instantiate(_childSlotTemplate.gameObject, _childSlotContent);
+            go.SetActive(true);
+            go.name = "Child slot_" + child.id;
+            _childSlots.Add(go);
+
+            var nameText = go.transform.Find(ChildSlotNamePath)?.GetComponent<TMP_Text>();
+            if (nameText != null) nameText.text = child.name;
+
+            var ageText = go.transform.Find(ChildSlotAgePath)?.GetComponent<TMP_Text>();
+            if (ageText != null) ageText.text = child.age > 0 ? $"{child.age}세" : "";
+
+            bool isActive = active != null && child.id == active.id;
+            var slotImg = go.GetComponent<Image>();
+            if (slotImg != null)
+            {
+                var c = _childSlotNormalColor;
+                if (!isActive) c.a *= 0.45f;
+                slotImg.color = c;
+            }
+
+            string id = child.id;
+            var btn = OnboardingUtil.EnsureButton(go.transform);
+            if (btn != null) btn.onClick.AddListener(() => OnSelectChild(id));
+        }
+    }
+
+    // 보호자 모드에서 아이 전환 — 활성 아이만 바꾸고(모드는 보호자 유지) 화면을 그 아이 데이터로 갱신.
+    private void OnSelectChild(string childId)
+    {
+        if (UserMng.ins == null) return;
+        UserMng.ins.SetActiveChild(childId);
+        Refresh();
     }
 
     private void RefreshProfile(DateTime now)
@@ -159,17 +268,40 @@ public class MainMenuView : MonoBehaviour
         if (todayText != null)
             todayText.text = $"{now.Month}월 {now.Day}일 {Weekdays[(int)now.DayOfWeek]}요일";
 
+        // 보호자 모드: "안녕, {보호자 이름}!" + '보호자 모드' 배지 / 아이 모드: "안녕, {아이 이름}!".
+        bool guardian = UserMng.ins != null && UserMng.ins.IsGuardian;
+
         if (helloText != null)
         {
-            string name = UserMng.ins != null ? UserMng.ins.UserName : null;
-            if (string.IsNullOrEmpty(name)) name = "하준";
+            string name = guardian ? GuardianName() : (UserMng.ins != null ? UserMng.ins.UserName : null);
+            if (string.IsNullOrEmpty(name)) name = guardian ? "보호자" : "하준";
             helloText.text = $"안녕, {name}!";
+        }
+
+        if (guardianBadge != null)
+        {
+            guardianBadge.gameObject.SetActive(guardian);
+            if (guardian && helloText != null)
+            {
+                // 배지를 인사말 텍스트 끝 바로 오른쪽에 붙인다(이름 길이에 따라 위치가 달라짐).
+                var pos = guardianBadge.anchoredPosition;
+                pos.x = helloText.GetPreferredValues(helloText.text).x + GuardianBadgeGap;
+                guardianBadge.anchoredPosition = pos;
+            }
         }
     }
 
+    // 보호자 이름만(호칭 제외). 미설정이면 빈 문자열.
+    private static string GuardianName()
+    {
+        var p = UserMng.ins != null ? UserMng.ins.Profile : null;
+        return p != null ? (p.guardianName ?? "").Trim() : "";
+    }
+
+    // 활성 아이의 기록만 — 홈 화면 점수/체크리스트/알림도 현재 아이 기준.
     private List<BrushingRecord> LoadRecords()
     {
-        try { return new JsonBrushingRecordRepository().LoadAll(); }
+        try { return ChildRecords.ActiveChildRecords(new JsonBrushingRecordRepository().LoadAll()); }
         catch { return new List<BrushingRecord>(); }
     }
 
