@@ -9,6 +9,7 @@ using UnityEngine.UI;
 ///
 /// 담당:
 ///   1) 날짜(연도 제외 "M월 d일 요일요일") + 인사말("안녕, {이름}!") — 이름은 UserMng.ins.UserName(기본 하준).
+///      보호자 모드면 이름 자리에 보호자 이름(호칭 제외)을 쓰고, 인사말 옆에 '보호자 모드' 배지를 켠다.
 ///   2) To-do(아침/점심/저녁): 오늘 해당 시간대 양치 기록이 있으면 Checked를 완료 스프라이트로 + "HH:mm 완료",
 ///      없으면 미완료 스프라이트 + "오전 6시 ~ 오전 10시 양치 완료 예정" 식 안내.
 ///   3) 스코어: 이번 주(월~현재) 평균 점수 표시. 전주 평균 대비 상승=초록 유지/위 화살표,
@@ -23,6 +24,8 @@ public class MainMenuView : MonoBehaviour
     [Header("프로필 / 날짜 (비우면 경로로 자동 탐색)")]
     [SerializeField] private TMP_Text todayText;
     [SerializeField] private TMP_Text helloText;
+    [Tooltip("보호자 모드에서 인사말 바로 오른쪽에 붙는 '보호자 모드' 배지.")]
+    [SerializeField] private RectTransform guardianBadge;
 
     [Header("To-do List")]
     [SerializeField] private Transform todolistRoot;
@@ -52,6 +55,8 @@ public class MainMenuView : MonoBehaviour
     // 루트(Mainmenu) 기준 상대 경로
     private const string PathToday    = "RealSpace/Top/Profile/TextInfo/Today";
     private const string PathHello    = "RealSpace/Top/Profile/TextInfo/hello ment";
+    private const string PathGuardianBadge = PathHello + "/Guardian Badge";
+    private const float  GuardianBadgeGap  = 20f;   // 인사말 끝 ~ 배지 사이 간격
     private const string PathTodolist = "RealSpace/SubPannels/Sub pannel/Todolist";
     private const string PathScore    = "RealSpace/SubPannels/Sub pannel (1)/Score";
     private const string PathLastWeek = "RealSpace/SubPannels/Sub pannel (1)/Last week/Score";
@@ -112,6 +117,7 @@ public class MainMenuView : MonoBehaviour
     {
         if (todayText == null) todayText = FindTMP(PathToday);
         if (helloText == null) helloText = FindTMP(PathHello);
+        if (guardianBadge == null) guardianBadge = transform.Find(PathGuardianBadge) as RectTransform;
         if (todolistRoot == null) todolistRoot = transform.Find(PathTodolist);
         if (scoreText == null) scoreText = FindTMP(PathScore);
         if (deltaText == null) deltaText = FindTMP(PathDelta);
@@ -262,12 +268,34 @@ public class MainMenuView : MonoBehaviour
         if (todayText != null)
             todayText.text = $"{now.Month}월 {now.Day}일 {Weekdays[(int)now.DayOfWeek]}요일";
 
+        // 보호자 모드: "안녕, {보호자 이름}!" + '보호자 모드' 배지 / 아이 모드: "안녕, {아이 이름}!".
+        bool guardian = UserMng.ins != null && UserMng.ins.IsGuardian;
+
         if (helloText != null)
         {
-            string name = UserMng.ins != null ? UserMng.ins.UserName : null;
-            if (string.IsNullOrEmpty(name)) name = "하준";
+            string name = guardian ? GuardianName() : (UserMng.ins != null ? UserMng.ins.UserName : null);
+            if (string.IsNullOrEmpty(name)) name = guardian ? "보호자" : "하준";
             helloText.text = $"안녕, {name}!";
         }
+
+        if (guardianBadge != null)
+        {
+            guardianBadge.gameObject.SetActive(guardian);
+            if (guardian && helloText != null)
+            {
+                // 배지를 인사말 텍스트 끝 바로 오른쪽에 붙인다(이름 길이에 따라 위치가 달라짐).
+                var pos = guardianBadge.anchoredPosition;
+                pos.x = helloText.GetPreferredValues(helloText.text).x + GuardianBadgeGap;
+                guardianBadge.anchoredPosition = pos;
+            }
+        }
+    }
+
+    // 보호자 이름만(호칭 제외). 미설정이면 빈 문자열.
+    private static string GuardianName()
+    {
+        var p = UserMng.ins != null ? UserMng.ins.Profile : null;
+        return p != null ? (p.guardianName ?? "").Trim() : "";
     }
 
     // 활성 아이의 기록만 — 홈 화면 점수/체크리스트/알림도 현재 아이 기준.

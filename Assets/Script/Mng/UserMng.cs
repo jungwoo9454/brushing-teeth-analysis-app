@@ -185,12 +185,18 @@ public class UserMng : Singleton<UserMng>
         return child;
     }
 
-    /// <summary>활성 아이를 바꾼다(프로필 선택). 존재하는 id일 때만 적용.</summary>
+    /// <summary>
+    /// 활성 아이를 바꾼다(프로필 선택). 존재하는 id일 때만 적용.
+    /// 표시 이름(UserName)도 그 아이 이름으로 맞춘다 — 온보딩 완료 시와 같은 규칙이라
+    /// 홈 인사말·양치 결과 화면이 전환된 아이 이름을 쓰게 된다.
+    /// </summary>
     public void SetActiveChild(string childId)
     {
         if (string.IsNullOrEmpty(childId)) return;
-        if (!Profile.children.Exists(c => c.id == childId)) return;
+        var child = Profile.children.Find(c => c.id == childId);
+        if (child == null) return;
         profile.activeChildId = childId;
+        if (!string.IsNullOrEmpty(child.name)) profile.userName = child.name;
         Save(); PublishChanged();
     }
 

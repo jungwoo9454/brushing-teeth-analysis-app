@@ -12,8 +12,10 @@ using UnityEngine.UI;
 ///      · 아이 항목 클릭 → 활성 아이 전환(SetActiveChild) → 리포트/버디가 그 아이 데이터로 바뀜.
 ///      · 활성 아이 항목에만 'Current' 텍스트를 켜서 지금 어떤 아이가 활성인지 보여준다.
 ///   3) Add Child — 목록 맨 아래 버튼 → AddChild 창을 팝업으로 띄움. 추가 완료 시 목록 갱신.
+///   4) 모드 전환 안내 — 프로필(PIN 확인) → 보호자 모드 전환 시 "보호자 모드로 전환되었습니다.",
+///      아이 항목 클릭 → 아이 모드 전환 시 "{이름} 아이로 전환되었습니다." 팝업(확인 → 홈 이동).
 ///
-/// 자식 참조는 경로로 자동 탐색하므로 인스펙터에는 addChildPrefab(AddChild)만 지정하면 된다.
+/// 자식 참조는 경로로 자동 탐색하므로 인스펙터에는 팝업 프리팹(AddChild/PinInput/NoticePopup)만 지정하면 된다.
 /// </summary>
 [DisallowMultipleComponent]
 public class SettingView : MonoBehaviour
@@ -23,6 +25,12 @@ public class SettingView : MonoBehaviour
     [SerializeField] private GameObject addChildPrefab;
     [Tooltip("보호자 모드 진입 시 PIN 검증으로 띄울 PinInput 프리팹.")]
     [SerializeField] private GameObject pinInputPrefab;
+    [Tooltip("모드 전환 안내(확인 버튼 하나)로 띄울 NoticePopup 프리팹.")]
+    [SerializeField] private GameObject noticePopupPrefab;
+
+    private const string MsgGuardianMode = "보호자 모드로 전환되었습니다.";
+    private const string MsgChildModeFormat = "{0} 아이로 전환되었습니다.";
+    private const string MsgChildModeFallback = "아이 모드로 전환되었습니다.";   // 아이 이름이 없을 때
 
     private const string PathProfile   = "RealSpace/Profile";
     private const string PathChilds    = "RealSpace/Scroll View/Viewport/Content/Childs";
@@ -88,6 +96,10 @@ public class SettingView : MonoBehaviour
     {
         ClosePopup();
         if (UserMng.ins != null) UserMng.ins.SetAppMode(AppMode.Guardian);
+
+        // 모드가 바뀌면 AppRouter가 설정 화면을 새로 생성(이 인스턴스는 파괴)하므로,
+        // 안내 팝업은 이 화면과 독립된 루트로 띄운다 — NoticePopupView.Show가 그렇게 만든다.
+        NoticePopupView.Show(noticePopupPrefab, MsgGuardianMode);
     }
 
     private void OnEnable() => Refresh();
@@ -185,6 +197,13 @@ public class SettingView : MonoBehaviour
         UserMng.ins.SetActiveChild(childId);
         UserMng.ins.SetAppMode(AppMode.Child);   // 아이 클릭 → 그 아이 활성 + 아이 모드.
         BuildChildList();   // (모드 변화 없으면) Current 표시 갱신.
+
+        // 전환 안내 → '확인' 시 홈으로 이동. (팝업은 설정 화면과 독립 — 위 모드 전환으로 이 화면이 교체돼도 유지)
+        var active = UserMng.ins.ActiveChild;
+        string msg = active != null && !string.IsNullOrEmpty(active.name)
+            ? string.Format(MsgChildModeFormat, active.name)
+            : MsgChildModeFallback;
+        NoticePopupView.Show(noticePopupPrefab, msg, onConfirm: () => AppRouter.ins.ShowTab(BottomTab.Home));
     }
 
     // ── 아이 추가 팝업 ────────────────────────────────────────────

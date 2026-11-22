@@ -2208,6 +2208,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SettingView
   addChildPrefab: {fileID: 7995648160208272991, guid: f50716f602a03e842adf6010a89f4584, type: 3}
   pinInputPrefab: {fileID: 7995648160208272991, guid: 65877014eed307343bbc912441dae203, type: 3}
+  noticePopupPrefab: {fileID: 8981404914778550740, guid: 16a0475bbf45241a18150d71584df88b, type: 3}
 --- !u!1 &8151171409372303943
 GameObject:
   m_ObjectHideFlags: 0
